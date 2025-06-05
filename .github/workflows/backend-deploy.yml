@@ -52,6 +52,6 @@ jobs:
             --cpu=1 \
             --timeout=300 \
             --max-instances=10 \
-            --set-env-vars="NODE_ENV=production" \
+            --set-env-vars="NODE_ENV=production,GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" \
             --cpu-boost \
             --execution-environment=gen2
