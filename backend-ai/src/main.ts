@@ -8,6 +8,7 @@ dotenv.config();
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
+  // TODO: Add the port to the environment variable
   await app.listen(process.env.PORT || 8080, '0.0.0.0');
 }
 
