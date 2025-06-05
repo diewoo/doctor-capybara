@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # Expone el puerto (ajusta si usas otro)
-EXPOSE 3001
+EXPOSE 8080
 
 # Comando para iniciar la app
 CMD ["node", "dist/main"]
