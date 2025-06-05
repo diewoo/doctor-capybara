@@ -12,7 +12,7 @@ declare module "@tanstack/react-router" {
   }
 }
 
-// Render the app
+// Render the app in the root element
 const rootElement = document.getElementById("app");
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
