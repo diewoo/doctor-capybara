@@ -1,5 +1,16 @@
 {
   "projects": {
-    "default": "crenteria-web-1503077472761"
-  }
+    "default": "crenteria-web-1503077472761",
+    "papu": "crenteria-web-1503077472761"
+  },
+  "targets": {
+    "crenteria-web-1503077472761": {
+      "hosting": {
+        "default": [
+          "doctor-capybara-d97d2"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
