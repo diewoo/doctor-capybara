@@ -2,11 +2,13 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY bun.lockb ./
 
-RUN npm install
+RUN bun install
 
 COPY . .
 
 EXPOSE 5173
-CMD ["npm", "run", "dev"] 
+
+# TODO: Add a command to run the frontend in production mode
+CMD ["bun", "run", "dev"] 

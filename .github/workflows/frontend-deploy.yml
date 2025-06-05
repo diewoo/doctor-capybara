@@ -40,12 +40,12 @@ jobs:
       - name: Install Dependencies
         run: |
           cd frontend
-          npm ci
+          bun install
 
       - name: Build
         run: |
           cd frontend
-          npm run build
+          bun run build
 
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
