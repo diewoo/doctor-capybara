@@ -14,7 +14,7 @@ COPY . .
 # Build the application
 RUN npm run build
 
-EXPOSE 5173
+EXPOSE 3000
 
-# Start the application in production mode
-CMD ["npm", "run", "start"] 
+# Start the application in production mode with host flag
+CMD ["npm", "run", "start", "--", "--host", "0.0.0.0"] 
