@@ -7,13 +7,10 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    volumes:
-      - ./backend-ai:/app
-      - /app/node_modules
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - PORT=8080
-    command: npm run dev
+    command: node dist/main
     networks:
       - app-network
 
