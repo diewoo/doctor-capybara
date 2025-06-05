@@ -51,6 +51,8 @@ jobs:
         run: |
           cd frontend
           bun run build
+        env:
+          VITE_API_URL: https://backend-ai-1069043402319.us-central1.run.app
 
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
