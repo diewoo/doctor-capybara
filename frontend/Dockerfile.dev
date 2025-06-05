@@ -10,5 +10,4 @@ COPY . .
 
 EXPOSE 5173
 
-# TODO: Add a command to run the frontend in production mode
 CMD ["bun", "run", "dev"] 
