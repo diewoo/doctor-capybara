@@ -2,9 +2,9 @@
 FROM node:20-alpine
 
 # Establece el directorio de trabajo
-WORKDIR /app
+WORKDIR /backend-ai
 
-# Copia los archivos de dependencias
+# Copy package files first to leverage Docker cache
 COPY package*.json ./
 
 # Instala dependencias

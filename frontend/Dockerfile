@@ -2,13 +2,19 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-COPY bun.lockb ./
+# Copy package files first to leverage Docker cache
+COPY package*.json ./
 
-RUN bun install
+# Install dependencies
+RUN npm install
 
+# Copy the rest of the application
 COPY . .
+
+# Build the application
+RUN npm run build
 
 EXPOSE 5173
 
-# TODO: Add a command to run the frontend in production mode
-CMD ["bun", "run", "dev"] 
+# Start the application in production mode
+CMD ["npm", "run", "start"] 

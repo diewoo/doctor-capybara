@@ -24,9 +24,9 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - NODE_ENV=development
-      - VITE_API_URL=http://localhost:3001
-    command: npm run dev
+      - NODE_ENV=production
+      - VITE_API_URL=http://localhost:8080
+    command: npm run start
     networks:
       - app-network
 
