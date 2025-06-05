@@ -1,8 +1,4 @@
 {
-  "git": true,
-  "version": 1,
-  "framework": "react-cra",
-  "chosenAddOns": [],
   "projects": {
     "default": "crenteria-web-1503077472761"
   }
