@@ -12,7 +12,7 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
-      - PORT=3001
+      - PORT=8080
     command: npm run dev
     networks:
       - app-network
