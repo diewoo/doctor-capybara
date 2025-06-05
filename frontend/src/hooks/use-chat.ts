@@ -8,7 +8,11 @@ export function useChat(patientId: string) {
   // Get conversation history
   const { data: conversation, isLoading } = useQuery({
     queryKey: ["conversation", patientId],
-    queryFn: () => chatService.getConversation(patientId),
+    queryFn: async () => {
+      const response = await chatService.getConversation(patientId);
+      console.log('Conversation response:', response);
+      return response;
+    },
     enabled: !!patientId,
   });
 

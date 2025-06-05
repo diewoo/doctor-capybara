@@ -39,6 +39,7 @@ export const chatService = {
   // Get conversation history
   getConversation: async (patientId: string) => {
     const response = await axios.get(`${API_URL}/patient/${patientId}/conversation`);
+    console.log('API Response:', response.data);
     return response.data;
   },
 

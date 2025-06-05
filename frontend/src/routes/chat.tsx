@@ -40,8 +40,8 @@ function ChatPage() {
       setIsProcessing(true);
       setError(null);
       const response = await chatService.processPatientInfo(patientInfo);
-      setPatientId(response.data.id);
-      setPatientDescription(response.data.htmlDescription);
+      setPatientId(response.id);
+      setPatientDescription(response.htmlDescription);
     } catch (err) {
       setError(
         "Error al procesar la información del paciente. Por favor, intente nuevamente."
