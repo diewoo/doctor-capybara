@@ -155,19 +155,45 @@ El pipeline está configurado en `.github/workflows/backend-deploy.yml` y se act
 
 ### 1. Configuración Inicial de Firebase
 
-1. Instalar Firebase CLI:
+1. Autenticación y selección de proyecto en GCP:
+
+   ```bash
+   # Iniciar sesión en GCP
+   gcloud auth login
+
+   # Listar proyectos disponibles
+   gcloud projects list
+
+   # Seleccionar el proyecto
+   gcloud config set project [PROJECT_ID]
+
+   # Verificar la configuración actual
+   gcloud config list
+   ```
+
+2. Obtener credenciales de Firebase:
+
+   ```bash
+   # Generar token de autenticación de Firebase
+   firebase login:ci
+
+   # Guardar el token generado como secret en GitHub:
+   # FIREBASE_TOKEN=[token_generado]
+   ```
+
+3. Instalar Firebase CLI:
 
    ```bash
    npm install -g firebase-tools
    ```
 
-2. Iniciar sesión en Firebase:
+4. Iniciar sesión en Firebase:
 
    ```bash
    firebase login
    ```
 
-3. Inicializar Firebase en el proyecto:
+5. Inicializar Firebase en el proyecto:
    ```bash
    cd frontend
    firebase init hosting
@@ -177,7 +203,63 @@ El pipeline está configurado en `.github/workflows/backend-deploy.yml` y se act
    - Configurar como SPA: Yes
    - No sobrescribir index.html: No
 
-### 2. Configuración del Proyecto Frontend
+### 2. Configuración de GCP para Frontend
+
+1. Verificar la cuenta de servicio de GitHub Actions:
+
+   ```bash
+   # Verificar que la cuenta de servicio existe
+   gcloud iam service-accounts list \
+     --filter="email:github-actions@[PROJECT_ID].iam.gserviceaccount.com"
+
+   # Si no existe, crearla (aunque ya debería estar creada del backend)
+   gcloud iam service-accounts create github-actions \
+     --display-name="GitHub Actions Service Account"
+   ```
+
+2. Descargar la clave JSON de la cuenta de servicio:
+
+   ```bash
+   # Crear y descargar la clave JSON
+   gcloud iam service-accounts keys create github-actions-key.json \
+     --iam-account=github-actions@[PROJECT_ID].iam.gserviceaccount.com
+
+   # El archivo se guardará como github-actions-key.json
+   # Este archivo debe ser guardado como secret en GitHub:
+   # GCP_SA_KEY=[contenido_del_archivo_json]
+   ```
+
+3. Habilitar las APIs necesarias para el frontend:
+
+   ```bash
+   gcloud services enable \
+     firebase.googleapis.com \
+     firebasehosting.googleapis.com \
+     cloudresourcemanager.googleapis.com \
+     iam.googleapis.com
+   ```
+
+4. Configurar el proyecto de Firebase en GCP:
+
+   ```bash
+   firebase projects:addfirebase [PROJECT_ID]
+   ```
+
+5. Configurar el hosting de Firebase:
+
+   ```bash
+   firebase target:apply hosting default [PROJECT_ID]
+   ```
+
+6. Asignar roles necesarios para el despliegue:
+
+   ```bash
+   gcloud projects add-iam-policy-binding [PROJECT_ID] \
+     --member="serviceAccount:github-actions@[PROJECT_ID].iam.gserviceaccount.com" \
+     --role="roles/firebasehosting.admin"
+   ```
+
+### 3. Configuración del Proyecto Frontend
 
 1. Estructura del proyecto:
 
@@ -202,22 +284,51 @@ El pipeline está configurado en `.github/workflows/backend-deploy.yml` y se act
    VITE_API_URL=http://localhost:8080
    ```
 
-### 3. Configuración de GitHub Secrets para Frontend
+### 4. Configuración de GitHub Secrets para Frontend
 
 Agregar los siguientes secrets en tu repositorio de GitHub:
 
 - `FIREBASE_SERVICE_ACCOUNT`: Contenido del archivo de credenciales de Firebase
 - `GCP_PROJECT_ID`: ID de tu proyecto en GCP (el mismo que usamos para el backend)
 
-### 4. CI/CD Pipeline Frontend
+### 5. CI/CD Pipeline Frontend
 
-El pipeline está configurado en `.github/workflows/frontend-deploy.yml` y se activa cuando:
+El pipeline está configurado en `.github/workflows/frontend-deploy.yml`:
 
-- Se hace push a la rama main
-- Se crea un pull request a la rama main
-- Se modifican archivos en el directorio `frontend/`
+```yaml
+name: Frontend CI/CD
 
-### 5. Desarrollo Local
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend/**"
+```
+
+Esta configuración:
+
+- Solo se ejecuta cuando hay cambios en el directorio `frontend/`
+- Se activa en:
+  - Push a la rama `main`
+  - Pull requests a la rama `main`
+- Ignora todos los demás cambios en el repositorio
+
+Para evitar que se ejecute el pipeline en ciertos commits, puedes usar cualquiera de estas variantes en el mensaje del commit:
+
+```bash
+git commit -m "docs: actualizar documentación [skip ci]"
+git commit -m "docs: actualizar documentación [ci skip]"
+git commit -m "docs: actualizar documentación [skip workflow]"
+git commit -m "docs: actualizar documentación [workflow skip]"
+```
+
+Todas estas variantes funcionan igual y evitarán que se ejecute el pipeline.
+
+### 6. Desarrollo Local
 
 1. Instalar dependencias:
 
@@ -237,19 +348,19 @@ El pipeline está configurado en `.github/workflows/frontend-deploy.yml` y se ac
    bun run build
    ```
 
-### 6. Despliegue
+### 7. Despliegue
 
 El frontend se despliega automáticamente a Firebase Hosting cuando:
 
 - Se hace push a la rama main
 - El pipeline de CI/CD se ejecuta exitosamente
 
-### 7. URLs y Dominios
+### 8. URLs y Dominios
 
 - Frontend (Producción): https://[PROJECT_ID].web.app
 - Frontend (Alternativa): https://[PROJECT_ID].firebaseapp.com
 
-### 8. Monitoreo y Analytics
+### 9. Monitoreo y Analytics
 
 1. Ver estadísticas de hosting:
 
@@ -260,7 +371,7 @@ El frontend se despliega automáticamente a Firebase Hosting cuando:
 2. Ver logs de despliegue:
    - Ir a Firebase Console > Hosting > Logs
 
-### 9. Troubleshooting Frontend
+### 10. Troubleshooting Frontend
 
 1. Si el build falla:
 
@@ -279,7 +390,7 @@ El frontend se despliega automáticamente a Firebase Hosting cuando:
    - Comprobar que CORS esté configurado en el backend
    - Verificar que el backend esté funcionando
 
-### 10. Configuración de CORS en el Backend
+### 11. Configuración de CORS en el Backend
 
 Para permitir peticiones desde el frontend, asegúrate de que el backend tenga configurado CORS:
 

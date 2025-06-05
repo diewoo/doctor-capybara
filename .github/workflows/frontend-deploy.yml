@@ -22,32 +22,49 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Check for skip pattern
+        id: skip
+        run: |
+          if [[ "${{ github.event.head_commit.message }}" =~ \[skip\ ci\]|\[ci\ skip\]|\[skip\ workflow\]|\[workflow\ skip\] ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Authenticate to Google Cloud
+        if: steps.skip.outputs.skip != 'true'
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ env.PROJECT_ID }}
 
       - name: Set up Cloud SDK
+        if: steps.skip.outputs.skip != 'true'
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Set up Node.js
+        if: steps.skip.outputs.skip != 'true'
         uses: actions/setup-node@v3
         with:
           node-version: "22"
 
       - name: Install Bun
+        if: steps.skip.outputs.skip != 'true'
         run: |
           curl -fsSL https://bun.sh/install | bash
           echo "$HOME/.bun/bin" >> $GITHUB_PATH
 
       - name: Install Dependencies
+        if: steps.skip.outputs.skip != 'true'
         run: |
           cd frontend
           bun install
 
       - name: Build
+        if: steps.skip.outputs.skip != 'true'
         run: |
           cd frontend
           bun run build
@@ -55,6 +72,7 @@ jobs:
           VITE_API_URL: https://backend-ai-1069043402319.us-central1.run.app
 
       - name: Deploy to Firebase
+        if: steps.skip.outputs.skip != 'true'
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"

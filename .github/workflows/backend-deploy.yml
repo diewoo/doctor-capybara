@@ -24,17 +24,31 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for skip pattern
+        id: skip
+        run: |
+          if [[ "${{ github.event.head_commit.message }}" =~ \[skip\ ci\]|\[ci\ skip\]|\[skip\ workflow\]|\[workflow\ skip\] ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Authenticate to Google Cloud
+        if: steps.skip.outputs.skip != 'true'
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ env.PROJECT_ID }}
 
       - name: Set up Cloud SDK
+        if: steps.skip.outputs.skip != 'true'
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Build and Push Container
+        if: steps.skip.outputs.skip != 'true'
         run: |
           cd backend-ai
           gcloud builds submit \
@@ -42,6 +56,7 @@ jobs:
             --project ${{ env.PROJECT_ID }}
 
       - name: Deploy to Cloud Run
+        if: steps.skip.outputs.skip != 'true'
         run: |
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} \
