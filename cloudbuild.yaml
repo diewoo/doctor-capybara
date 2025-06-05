@@ -1,0 +1,78 @@
+steps:
+  # Build and deploy backend
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "gcr.io/$PROJECT_ID/backend-ai",
+        "--no-cache",
+        "./backend-ai",
+      ]
+    id: "build-backend"
+  # Push a Container Registry image to the cloud
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "gcr.io/$PROJECT_ID/backend-ai"]
+    id: "push-backend"
+  # Deploy the container to Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - "run"
+      - "deploy"
+      - "backend-ai"
+      - "--image"
+      - "gcr.io/$PROJECT_ID/backend-ai"
+      - "--region"
+      - "us-central1"
+      - "--platform"
+      - "managed"
+      - "--allow-unauthenticated"
+      - "--memory"
+      - "256Mi"
+      - "--cpu"
+      - "0.5"
+      - "--min-instances"
+      - "0"
+      - "--max-instances"
+      - "5"
+      - "--concurrency"
+      - "80"
+      - "--timeout"
+      - "300s"
+    id: "deploy-backend"
+
+  # Build and deploy frontend
+  - name: "node:22"
+    entrypoint: npm
+    args: ["ci", "--prefer-offline"]
+    dir: "frontend"
+    id: "install-frontend-deps"
+
+  - name: "node:22"
+    entrypoint: npm
+    args: ["run", "build"]
+    dir: "frontend"
+    id: "build-frontend"
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - "firebase"
+      - "deploy"
+      - "--only"
+      - "hosting"
+      - "--project"
+      - "$PROJECT_ID"
+    dir: "frontend"
+    id: "deploy-frontend"
+
+timeout: "900s"
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: "E2_HIGHCPU_4"
+  dynamicSubstitutions: true
+
+substitutions:
+  _ENVIRONMENT: "production"
+  _REGION: "us-central1"
