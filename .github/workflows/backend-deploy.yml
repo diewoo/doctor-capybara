@@ -37,7 +37,9 @@ jobs:
       - name: Build and Push Container
         run: |
           cd backend-ai
-          gcloud builds submit --tag gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}
+          gcloud builds submit \
+            --tag gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} \
+            --project ${{ env.PROJECT_ID }}
 
       - name: Deploy to Cloud Run
         run: |
