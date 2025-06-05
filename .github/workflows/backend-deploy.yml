@@ -14,6 +14,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   SERVICE_NAME: backend-ai
   REGION: us-central1
+  # TODO: Add the service name to the environment variable
 
 jobs:
   build-and-deploy:
@@ -40,7 +41,6 @@ jobs:
           gcloud builds submit \
             --tag gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }} \
             --project ${{ env.PROJECT_ID }}
-
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy ${{ env.SERVICE_NAME }} \
