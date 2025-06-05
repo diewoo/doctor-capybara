@@ -12,26 +12,295 @@ cp key.example.json key.json
 
 3. Las credenciales reales se mantienen en `~/.gcloud/doctor-capybara-key.json` para desarrollo local.
 
-## Desarrollo Local
+## Configuración del Backend en Google Cloud Platform (GCP)
 
-```bash
-# Instalar dependencias
-npm install
+### 1. Configuración Inicial de GCP
 
-# Iniciar el entorno de desarrollo
-docker-compose up
-```
+1. Crear un nuevo proyecto en GCP:
 
-## Despliegue
+   ```bash
+   gcloud projects create [PROJECT_ID] --name="Doctor Capybara"
+   ```
 
-El proyecto está configurado para desplegar automáticamente a Google Cloud Platform cuando se hace push a la rama main.
+2. Habilitar las APIs necesarias:
 
-### Backend
+   ```bash
+   gcloud services enable \
+     run.googleapis.com \
+     cloudbuild.googleapis.com \
+     artifactregistry.googleapis.com \
+     containerregistry.googleapis.com
+   ```
 
-- Se despliega a Cloud Run
-- Usa la cuenta de servicio configurada en GitHub Secrets
+3. Crear una cuenta de servicio para CI/CD:
 
-### Frontend
+   ```bash
+   gcloud iam service-accounts create github-actions \
+     --display-name="GitHub Actions Service Account"
+   ```
+
+4. Asignar roles necesarios a la cuenta de servicio:
+
+   ```bash
+   gcloud projects add-iam-policy-binding [PROJECT_ID] \
+     --member="serviceAccount:github-actions@[PROJECT_ID].iam.gserviceaccount.com" \
+     --role="roles/run.admin"
+
+   gcloud projects add-iam-policy-binding [PROJECT_ID] \
+     --member="serviceAccount:github-actions@[PROJECT_ID].iam.gserviceaccount.com" \
+     --role="roles/cloudbuild.builds.builder"
+
+   gcloud projects add-iam-policy-binding [PROJECT_ID] \
+     --member="serviceAccount:github-actions@[PROJECT_ID].iam.gserviceaccount.com" \
+     --role="roles/storage.admin"
+   ```
+
+5. Crear y descargar la clave de la cuenta de servicio:
+   ```bash
+   gcloud iam service-accounts keys create key.json \
+     --iam-account=github-actions@[PROJECT_ID].iam.gserviceaccount.com
+   ```
+
+### 2. Configuración de GitHub Secrets
+
+Agregar los siguientes secrets en tu repositorio de GitHub:
+
+- `GCP_PROJECT_ID`: ID de tu proyecto en GCP
+- `GCP_SA_KEY`: Contenido del archivo key.json generado en el paso anterior
+- `GEMINI_API_KEY`: Tu API key de Gemini
+
+### 3. Configuración del Backend
+
+1. Estructura del proyecto:
+
+   ```
+   backend-ai/
+   ├── Dockerfile
+   ├── package.json
+   └── src/
+   ```
+
+2. Configuración de Cloud Run:
+
+   - Memoria: 1GB
+   - CPU: 1
+   - Timeout: 300s
+   - Máximo de instancias: 10
+   - CPU Boost habilitado
+   - Entorno de ejecución: Gen2
+
+3. Variables de entorno en Cloud Run:
+   - `NODE_ENV=production`
+   - `GEMINI_API_KEY=[tu-api-key]`
+
+### 4. CI/CD Pipeline
+
+El pipeline está configurado en `.github/workflows/backend-deploy.yml` y se activa cuando:
+
+- Se hace push a la rama main
+- Se crea un pull request a la rama main
+- Se modifican archivos en el directorio `backend-ai/`
+
+### 5. Desarrollo Local
+
+1. Configurar credenciales locales:
+
+   ```bash
+   cp key.example.json key.json
+   # Editar key.json con tus credenciales
+   ```
+
+2. Iniciar el entorno de desarrollo:
+   ```bash
+   cd backend-ai
+   npm install
+   npm run dev
+   ```
+
+### 6. URLs y Endpoints
+
+- Backend API: https://backend-ai-[PROJECT_ID].us-central1.run.app
+- Documentación de la API: [URL de la documentación]
+
+### 7. Monitoreo y Logs
+
+1. Ver logs en tiempo real:
+
+   ```bash
+   gcloud logging tail "resource.type=cloud_run_revision AND resource.labels.service_name=backend-ai"
+   ```
+
+2. Monitorear métricas en Google Cloud Console:
+   - Ir a Cloud Run > backend-ai > Métricas
+
+### 8. Troubleshooting
+
+1. Si el despliegue falla:
+
+   - Revisar los logs en GitHub Actions
+   - Verificar que las credenciales sean correctas
+   - Confirmar que las APIs estén habilitadas
+
+2. Si la aplicación no responde:
+   - Verificar los logs en Cloud Run
+   - Comprobar que las variables de entorno estén configuradas
+   - Revisar los límites de recursos
+
+## Frontend
 
 - Se despliega a Firebase Hosting
 - Usa la configuración de Firebase en GitHub Secrets
+
+## Configuración del Frontend
+
+### 1. Configuración Inicial de Firebase
+
+1. Instalar Firebase CLI:
+
+   ```bash
+   npm install -g firebase-tools
+   ```
+
+2. Iniciar sesión en Firebase:
+
+   ```bash
+   firebase login
+   ```
+
+3. Inicializar Firebase en el proyecto:
+   ```bash
+   cd frontend
+   firebase init hosting
+   ```
+   - Seleccionar el proyecto de GCP
+   - Directorio público: `dist`
+   - Configurar como SPA: Yes
+   - No sobrescribir index.html: No
+
+### 2. Configuración del Proyecto Frontend
+
+1. Estructura del proyecto:
+
+   ```
+   frontend/
+   ├── src/
+   ├── public/
+   ├── vite.config.js
+   ├── package.json
+   └── .env
+   ```
+
+2. Configurar variables de entorno:
+   Crear archivo `.env` en el directorio frontend:
+
+   ```
+   VITE_API_URL=https://backend-ai-[PROJECT_ID].us-central1.run.app
+   ```
+
+3. Para desarrollo local, crear `.env.development`:
+   ```
+   VITE_API_URL=http://localhost:8080
+   ```
+
+### 3. Configuración de GitHub Secrets para Frontend
+
+Agregar los siguientes secrets en tu repositorio de GitHub:
+
+- `FIREBASE_SERVICE_ACCOUNT`: Contenido del archivo de credenciales de Firebase
+- `GCP_PROJECT_ID`: ID de tu proyecto en GCP (el mismo que usamos para el backend)
+
+### 4. CI/CD Pipeline Frontend
+
+El pipeline está configurado en `.github/workflows/frontend-deploy.yml` y se activa cuando:
+
+- Se hace push a la rama main
+- Se crea un pull request a la rama main
+- Se modifican archivos en el directorio `frontend/`
+
+### 5. Desarrollo Local
+
+1. Instalar dependencias:
+
+   ```bash
+   cd frontend
+   bun install
+   ```
+
+2. Iniciar servidor de desarrollo:
+
+   ```bash
+   bun run dev
+   ```
+
+3. Construir para producción:
+   ```bash
+   bun run build
+   ```
+
+### 6. Despliegue
+
+El frontend se despliega automáticamente a Firebase Hosting cuando:
+
+- Se hace push a la rama main
+- El pipeline de CI/CD se ejecuta exitosamente
+
+### 7. URLs y Dominios
+
+- Frontend (Producción): https://[PROJECT_ID].web.app
+- Frontend (Alternativa): https://[PROJECT_ID].firebaseapp.com
+
+### 8. Monitoreo y Analytics
+
+1. Ver estadísticas de hosting:
+
+   ```bash
+   firebase hosting:sites:list
+   ```
+
+2. Ver logs de despliegue:
+   - Ir a Firebase Console > Hosting > Logs
+
+### 9. Troubleshooting Frontend
+
+1. Si el build falla:
+
+   - Verificar que todas las dependencias estén instaladas
+   - Revisar los logs en GitHub Actions
+   - Comprobar que las variables de entorno estén configuradas
+
+2. Si el despliegue falla:
+
+   - Verificar las credenciales de Firebase
+   - Comprobar que el proyecto esté correctamente inicializado
+   - Revisar los logs en Firebase Console
+
+3. Si la conexión con el backend falla:
+   - Verificar que la URL de la API sea correcta
+   - Comprobar que CORS esté configurado en el backend
+   - Verificar que el backend esté funcionando
+
+### 10. Configuración de CORS en el Backend
+
+Para permitir peticiones desde el frontend, asegúrate de que el backend tenga configurado CORS:
+
+```typescript
+app.use(
+  cors({
+    origin: [
+      "https://[PROJECT_ID].web.app",
+      "https://[PROJECT_ID].firebaseapp.com",
+      "http://localhost:5173", // Para desarrollo local
+    ],
+  })
+);
+```
+
+## Contribución
+
+1. Crear una rama para tu feature
+2. Hacer commit de tus cambios
+3. Crear un pull request a main
+
+## Licencia
+
+[Información de la licencia]
