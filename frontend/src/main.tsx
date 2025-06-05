@@ -11,7 +11,7 @@ declare module "@tanstack/react-router" {
     router: typeof router;
   }
 }
-
+// TODO: Add a command to run the frontend in production mode
 const rootElement = document.getElementById("app");
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
