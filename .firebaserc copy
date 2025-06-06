@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "doctor-capybara"
+  },
+  "targets": {
+    "doctor-capybara": {
+      "hosting": {
+        "default": [
+          "doctor-capybara"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

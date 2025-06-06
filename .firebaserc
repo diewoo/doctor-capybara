@@ -1,6 +1,6 @@
 {
   "projects": {
-    "default": "crenteria-web-1503077472761",
+    "default": "doctor-capybara",
     "doctor-capybara": "doctor-capybara"
   },
   "targets": {

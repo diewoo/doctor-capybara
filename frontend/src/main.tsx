@@ -4,7 +4,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { router } from "./routes/__root";
 import "./styles.css";
 import reportWebVitals from "./reportWebVitals";
-
+// render the app
 const rootElement = document.getElementById("app");
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
