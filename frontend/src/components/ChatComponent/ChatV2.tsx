@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { ChatMessage } from "@/services/chatService";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
 import { Copy, ThumbsDown, Trash2, Check, ArrowDown } from "lucide-react";
 import TypewriterEffect from "./TypewriterEffect";
 import { Button } from "../ui/button";
@@ -104,7 +104,11 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                   >
                     <div className="flex gap-2 items-end">
                       {!isUser && (
-                        <Avatar className="w-8 h-8">
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage
+                            src="/doctor_capybara.jpeg"
+                            alt="Doctor Capybara"
+                          />
                           <AvatarFallback className="bg-indigo-800 text-sm text-white">
                             DC
                           </AvatarFallback>

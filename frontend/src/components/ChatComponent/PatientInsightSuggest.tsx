@@ -17,7 +17,15 @@ const prompts = [
   "¿Qué alimentos debo evitar o consumir más?",
   "¿Cuánto tiempo suele durar esta condición?",
   "¿Necesito reposo absoluto o puedo hacer ejercicio leve?",
+  "¿Qué puedo hacer para mejorar mi estado de salud?",
+  "¿Qué alimentos puedo consumir para mejorar mi estado de salud?",
+  "¿Qué alimentos puedo consumir para mejorar mi estado de salud?",
+  "¿Cuál es la mejor manera de tomar mis medicamentos?",
+  "¿Qué actividades puedo realizar para mejorar mi estado de salud?",
+  "¿Qué alimentos puedo consumir para mejorar mi estado de salud?",
 ];
+
+const randomPrompts = prompts.sort(() => Math.random() - 0.5).slice(0, 4);
 
 const PatientInsightSuggest = ({
   isDisabled,
@@ -31,7 +39,7 @@ const PatientInsightSuggest = ({
   return (
     <div className="relative w-full mb-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-        {prompts?.map((prompt, index) => (
+        {randomPrompts?.map((prompt, index) => (
           <Button
             key={index}
             variant="outline"

@@ -17,6 +17,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { dashboardLayoutRoute } from "../_dashboardLayout";
+import { useForm } from "react-hook-form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +35,13 @@ export const chatRoute = createRoute({
   getParentRoute: () => dashboardLayoutRoute,
   path: "/",
   component: ChatPage,
+});
+
+const formSchema = z.object({
+  name: z.string().min(1, "El nombre es requerido"),
+  age: z.string().min(1, "La edad es requerida"),
+  symptoms: z.string().min(1, "Los síntomas son requeridos"),
+  medicalHistory: z.string().optional(),
 });
 
 function ChatPage() {
@@ -35,10 +53,18 @@ function ChatPage() {
   );
   const [showChat, setShowChat] = useState(false);
 
-  const handlePatientInfoSubmit = async (patientInfo: any) => {
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    mode: "onChange",
+  });
+
+  const handlePatientInfoSubmit = async (
+    values: z.infer<typeof formSchema>
+  ) => {
     try {
       setIsProcessing(true);
       setError(null);
+      const patientInfo = `Paciente ${values.name}, ${values.age} años, ${values.symptoms}, historial: ${values.medicalHistory || "no especificado"}.`;
       const response = await chatService.processPatientInfo(patientInfo);
       setPatientId(response.id);
       setPatientDescription(response.htmlDescription);
@@ -64,70 +90,95 @@ function ChatPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                const patientInfo = `Paciente ${formData.get("name")}, ${formData.get("age")} años, ${formData.get("symptoms")}, historial: ${formData.get("medicalHistory") || "no especificado"}.`;
-                handlePatientInfoSubmit(patientInfo);
-              }}
-              className="space-y-6"
-            >
-              <div className="space-y-2">
-                <Label htmlFor="name">Nombre del Paciente</Label>
-                <Input
-                  type="text"
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(handlePatientInfoSubmit)}
+                className="space-y-6"
+              >
+                <FormField
+                  control={form.control}
                   name="name"
-                  id="name"
-                  required
-                  placeholder="Ingrese el nombre completo"
-                  value="Juan Perez"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre del Paciente</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ingrese el nombre completo"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="age">Edad</Label>
-                <Input
-                  type="number"
+                <FormField
+                  control={form.control}
                   name="age"
-                  id="age"
-                  required
-                  placeholder="Ingrese la edad"
-                  value="30"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Edad</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="Ingrese la edad"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="symptoms">Síntomas</Label>
-                <Textarea
+                <FormField
+                  control={form.control}
                   name="symptoms"
-                  id="symptoms"
-                  required
-                  placeholder="Describa los síntomas del paciente"
-                  className="min-h-[100px]"
-                  value="me duele la cabeza"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Síntomas</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Describa los síntomas del paciente"
+                          className="min-h-[100px]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="medicalHistory">Historial Médico</Label>
-                <Textarea
+                <FormField
+                  control={form.control}
                   name="medicalHistory"
-                  id="medicalHistory"
-                  placeholder="Describa el historial médico relevante"
-                  className="min-h-[100px]"
-                  value="tengo una hernia"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Historial Médico</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Describa el historial médico relevante"
+                          className="min-h-[100px]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <Button type="submit" disabled={isProcessing} className="w-full">
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Procesando...
-                  </>
-                ) : (
-                  "Iniciar Consulta"
-                )}
-              </Button>
-              {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
-            </form>
+                <Button
+                  type="submit"
+                  disabled={isProcessing || !form.formState.isValid}
+                  className="w-full"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Procesando...
+                    </>
+                  ) : (
+                    "Iniciar Consulta"
+                  )}
+                </Button>
+                {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+              </form>
+            </Form>
           </CardContent>
         </Card>
       </div>

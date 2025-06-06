@@ -17,6 +17,20 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
 );
 Avatar.displayName = "Avatar";
 
+export interface AvatarImageProps
+  extends React.ImgHTMLAttributes<HTMLImageElement> {}
+
+const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
+  ({ className, ...props }, ref) => (
+    <img
+      ref={ref}
+      className={cn("aspect-square h-full w-full object-cover", className)}
+      {...props}
+    />
+  )
+);
+AvatarImage.displayName = "AvatarImage";
+
 export interface AvatarFallbackProps
   extends React.HTMLAttributes<HTMLDivElement> {}
 
@@ -34,4 +48,4 @@ const AvatarFallback = React.forwardRef<HTMLDivElement, AvatarFallbackProps>(
 );
 AvatarFallback.displayName = "AvatarFallback";
 
-export { Avatar, AvatarFallback };
+export { Avatar, AvatarImage, AvatarFallback };
