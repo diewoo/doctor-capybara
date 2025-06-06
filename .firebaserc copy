@@ -1,12 +1,15 @@
 {
   "projects": {
-    "default": "doctor-capybara"
+    "default": "crenteria-web-1503077472761"
   },
   "targets": {
-    "doctor-capybara": {
+    "crenteria-web-1503077472761": {
       "hosting": {
-        "default": [
-          "doctor-capybara"
+        "crenteria-web-1503077472761": [
+          "crenteria-web-1503077472761"
+        ],
+        "doctor-capybara-d97d2": [
+          "doctor-capybara-d97d2"
         ]
       }
     }
