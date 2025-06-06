@@ -250,7 +250,9 @@ El pipeline está configurado en `.github/workflows/backend-deploy.yml` y se act
    ```bash
    firebase target:apply hosting default [PROJECT_ID]
    ```
-
+   ```bash
+    firebase hosting:sites:create doctor-capybara --project=doctor-capybara
+   ```
 6. Asignar roles necesarios para el despliegue:
 
    ```bash
