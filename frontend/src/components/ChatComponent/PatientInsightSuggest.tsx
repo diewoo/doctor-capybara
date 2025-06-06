@@ -17,10 +17,6 @@ const prompts = [
   "¿Qué alimentos debo evitar o consumir más?",
   "¿Cuánto tiempo suele durar esta condición?",
   "¿Necesito reposo absoluto o puedo hacer ejercicio leve?",
-  "¿Qué debo decirle a mi médico en la próxima consulta?",
-  "¿Hay alternativas naturales o caseras para mi malestar?",
-  "¿Qué debo hacer si los síntomas empeoran?",
-  "¿Puedo tomar mis medicamentos habituales?",
 ];
 
 const PatientInsightSuggest = ({
