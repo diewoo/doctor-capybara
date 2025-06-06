@@ -1,12 +1,12 @@
 {
   "projects": {
-    "default": "doctor-capybara"
+    "default": "doctor-capybara-70e3cf1ed1"
   },
   "targets": {
-    "doctor-capybara": {
+    "doctor-capybara-70e3cf1ed1": {
       "hosting": {
         "default": [
-          "doctor-capybara"
+          "doctor-capybara-70e3cf1ed1"
         ]
       }
     }

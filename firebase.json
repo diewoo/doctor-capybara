@@ -1,7 +1,7 @@
 {
   "hosting": [
     {
-      "target": "doctor-capybara",
+      "target": "doctor-capybara-70e3cf1ed1",
       "public": "frontend/dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [{ "source": "**", "destination": "/index.html" }]
