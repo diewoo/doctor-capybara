@@ -69,7 +69,7 @@ jobs:
           cd frontend
           bun run build
         env:
-          VITE_API_URL: https://backend-ai-1069043402319.us-central1.run.app
+          VITE_API_URL: https://backend-ai-410218035484.us-central1.run.app
 
       - name: Deploy to Firebase
         if: steps.skip.outputs.skip != 'true'
