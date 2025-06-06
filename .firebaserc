@@ -9,6 +9,13 @@
           "doctor-capybara-70e3cf1ed1"
         ]
       }
+    },
+    "doctor-capybara": {
+      "hosting": {
+        "doctor-capybara-70e3cf1ed1": [
+          "doctor-capybara"
+        ]
+      }
     }
   },
   "etags": {}
