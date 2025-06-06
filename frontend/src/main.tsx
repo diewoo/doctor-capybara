@@ -6,7 +6,6 @@ import "./styles.css";
 import reportWebVitals from "./reportWebVitals";
 const rootElement = document.getElementById("app");
 if (rootElement && !rootElement.innerHTML) {
-  // render the app
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <React.StrictMode>
