@@ -21,7 +21,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
   const handleSendMessage = async (content: string) => {
     setIsDisabled(true);
     try {
-      await sendMessage(content);
+      sendMessage(content);
       setInput("");
     } finally {
       setIsDisabled(false);
@@ -29,7 +29,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full p-3.5">
       <ChatV2
         messages={conversation || []}
         userName={userName}
@@ -38,7 +38,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
       <PatientInsightSuggest
         isDisabled={isLoading || isSending || isDisabled}
         setInput={setInput}
-        onSubmit={setInput}
+        onSubmit={handleSendMessage}
       />
       <ChatInputV2
         onSendMessage={handleSendMessage}

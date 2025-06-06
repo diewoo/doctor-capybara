@@ -11,14 +11,14 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
-import { Route as ChatImport } from './routes/chat'
+import { Route as DashboardLayoutImport } from './routes/_dashboardLayout'
 import { Route as IndexImport } from './routes/index'
+import { Route as DashboardLayoutChatImport } from './routes/_dashboardLayout/chat'
 
 // Create/Update Routes
 
-const ChatRoute = ChatImport.update({
-  id: '/chat',
-  path: '/chat',
+const DashboardLayoutRoute = DashboardLayoutImport.update({
+  id: '/_dashboardLayout',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -26,6 +26,12 @@ const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRoute,
+} as any)
+
+const DashboardLayoutChatRoute = DashboardLayoutChatImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => DashboardLayoutRoute,
 } as any)
 
 // Populate the FileRoutesByPath interface
@@ -39,51 +45,73 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
-    '/chat': {
-      id: '/chat'
+    '/_dashboardLayout': {
+      id: '/_dashboardLayout'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof DashboardLayoutImport
+      parentRoute: typeof rootRoute
+    }
+    '/_dashboardLayout/chat': {
+      id: '/_dashboardLayout/chat'
       path: '/chat'
       fullPath: '/chat'
-      preLoaderRoute: typeof ChatImport
-      parentRoute: typeof rootRoute
+      preLoaderRoute: typeof DashboardLayoutChatImport
+      parentRoute: typeof DashboardLayoutImport
     }
   }
 }
 
 // Create and export the route tree
 
+interface DashboardLayoutRouteChildren {
+  DashboardLayoutChatRoute: typeof DashboardLayoutChatRoute
+}
+
+const DashboardLayoutRouteChildren: DashboardLayoutRouteChildren = {
+  DashboardLayoutChatRoute: DashboardLayoutChatRoute,
+}
+
+const DashboardLayoutRouteWithChildren = DashboardLayoutRoute._addFileChildren(
+  DashboardLayoutRouteChildren,
+)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/chat': typeof ChatRoute
+  '': typeof DashboardLayoutRouteWithChildren
+  '/chat': typeof DashboardLayoutChatRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/chat': typeof ChatRoute
+  '': typeof DashboardLayoutRouteWithChildren
+  '/chat': typeof DashboardLayoutChatRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
-  '/chat': typeof ChatRoute
+  '/_dashboardLayout': typeof DashboardLayoutRouteWithChildren
+  '/_dashboardLayout/chat': typeof DashboardLayoutChatRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chat'
+  fullPaths: '/' | '' | '/chat'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat'
-  id: '__root__' | '/' | '/chat'
+  to: '/' | '' | '/chat'
+  id: '__root__' | '/' | '/_dashboardLayout' | '/_dashboardLayout/chat'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ChatRoute: typeof ChatRoute
+  DashboardLayoutRoute: typeof DashboardLayoutRouteWithChildren
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ChatRoute: ChatRoute,
+  DashboardLayoutRoute: DashboardLayoutRouteWithChildren,
 }
 
 export const routeTree = rootRoute
@@ -97,14 +125,21 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
-        "/chat"
+        "/_dashboardLayout"
       ]
     },
     "/": {
       "filePath": "index.tsx"
     },
-    "/chat": {
-      "filePath": "chat.tsx"
+    "/_dashboardLayout": {
+      "filePath": "_dashboardLayout.tsx",
+      "children": [
+        "/_dashboardLayout/chat"
+      ]
+    },
+    "/_dashboardLayout/chat": {
+      "filePath": "_dashboardLayout/chat.tsx",
+      "parent": "/_dashboardLayout"
     }
   }
 }

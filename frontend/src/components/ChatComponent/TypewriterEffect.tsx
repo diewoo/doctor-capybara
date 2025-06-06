@@ -3,11 +3,13 @@ import React, { useEffect, useState } from "react";
 interface TypewriterEffectProps {
   content: string;
   onComplete?: () => void;
+  onUpdate?: () => void;
 }
 
 const TypewriterEffect: React.FC<TypewriterEffectProps> = ({
   content,
   onComplete,
+  onUpdate,
 }) => {
   const [displayedContent, setDisplayedContent] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -23,22 +25,25 @@ const TypewriterEffect: React.FC<TypewriterEffectProps> = ({
         const tag = content.slice(currentIndex, nextIndex + 1);
         setDisplayedContent((prev) => prev + tag);
         setCurrentIndex(nextIndex + 1);
+        onUpdate?.();
       } else if (content[currentIndex] === "\n") {
         // If we're at a newline, write it immediately
         setDisplayedContent((prev) => prev + "\n");
         setCurrentIndex((prev) => prev + 1);
+        onUpdate?.();
       } else {
         // For regular characters, use the base delay
         const timeout = setTimeout(() => {
           setDisplayedContent((prev) => prev + content[currentIndex]);
           setCurrentIndex((prev) => prev + 1);
+          onUpdate?.();
         }, baseDelay);
         return () => clearTimeout(timeout);
       }
     } else if (onComplete) {
       onComplete();
     }
-  }, [currentIndex, content, onComplete]);
+  }, [currentIndex, content, onComplete, onUpdate]);
 
   return (
     <div

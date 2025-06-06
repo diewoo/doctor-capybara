@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { SendHorizontal, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ChatInputV2Props {
   onSendMessage: (message: string) => void;
@@ -18,8 +18,6 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
   value,
   setValue,
 }) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (value.trim() && !isLoading && !disabled) {
@@ -35,15 +33,6 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
     }
   };
 
-  // Auto-resize textarea
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
-    }
-  }, [value]);
-
   return (
     <form
       onSubmit={handleSubmit}
@@ -51,12 +40,11 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
     >
       <div className="relative flex-1">
         <Textarea
-          ref={textareaRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Escribe tu mensaje..."
-          className="min-h-[44px] max-h-[200px] pr-12 resize-none"
+          className="min-h-[44px] max-h-[200px] pr-12"
           disabled={isLoading || disabled}
         />
         <div className="absolute right-2 bottom-2 text-xs text-gray-400">

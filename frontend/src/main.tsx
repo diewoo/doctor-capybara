@@ -5,13 +5,6 @@ import { router } from "./routes/__root";
 import "./styles.css";
 import reportWebVitals from "./reportWebVitals";
 
-// Register the router instance for type safety
-declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
-}
-
 const rootElement = document.getElementById("app");
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);

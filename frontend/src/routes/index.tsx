@@ -1,5 +1,4 @@
 import { createRoute } from "@tanstack/react-router";
-import { rootRoute } from "./__root";
 import { useState, useEffect } from "react";
 import { Header } from "../components/layout/Header";
 import { Footer } from "../components/layout/Footer";
@@ -9,6 +8,7 @@ import { Features } from "../components/sections/Features";
 import { Contact } from "../components/sections/Contact";
 import { CallToAction } from "../components/sections/CallToAction";
 import "../App.css";
+import { rootRoute } from "./__root";
 
 export const indexRoute = createRoute({
   getParentRoute: () => rootRoute,

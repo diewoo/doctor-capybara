@@ -6,4 +6,5 @@ dist-ssr
 bun.lock
 package-lock.json
 github-action-key.json
+github-actions-key.json
 

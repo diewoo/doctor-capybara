@@ -29,7 +29,7 @@ export const Hero: FC<HeroProps> = ({ currentLang }) => {
               : "Discover the power of nature with Doctor Capybara, your intelligent assistant suggesting organic, food-based remedies to prevent and cure simple ailments."}
           </p>
           <Link
-            to="/chat"
+            to="/dashboard"
             className="inline-block bg-emerald-600 text-white hover:bg-emerald-700 font-bold py-2 sm:py-3 px-6 sm:px-8 rounded-full shadow-lg transition duration-300 transform hover:scale-105 text-sm sm:text-base"
           >
             {currentLang === "es"
