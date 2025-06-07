@@ -3,7 +3,14 @@
     "default": "doctor-capybara-70e3cf1ed1"
   },
   "targets": {
-    "doctor-capybara-70e3cf1ed1": {
+    "capybara-main-site": {
+      "hosting": {
+        "default": [
+          "doctor-capybara"
+        ]
+      }
+    },
+    "capybara-dev-site": {
       "hosting": {
         "default": [
           "doctor-capybara-70e3cf1ed1"
@@ -12,8 +19,11 @@
     },
     "doctor-capybara": {
       "hosting": {
-        "doctor-capybara-70e3cf1ed1": [
+        "capybara-main-site": [
           "doctor-capybara"
+        ],
+        "capybara-dev-site": [
+          "doctor-capybara-70e3cf1ed1"
         ]
       }
     }

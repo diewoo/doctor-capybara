@@ -1,13 +1,13 @@
 {
   "hosting": [
     {
-      "target": "doctor-capybara-70e3cf1ed1",
+      "target": "capybara-dev-site",
       "public": "frontend/dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [{ "source": "**", "destination": "/index.html" }]
     },
     {
-      "target": "doctor-capybara",
+      "target": "capybara-main-site",
       "public": "frontend/dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [{ "source": "**", "destination": "/index.html" }]

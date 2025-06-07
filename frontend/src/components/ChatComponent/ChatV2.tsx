@@ -109,9 +109,6 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                             src="/doctor_capybara.jpeg"
                             alt="Doctor Capybara"
                           />
-                          <AvatarFallback className="bg-indigo-800 text-sm text-white">
-                            DC
-                          </AvatarFallback>
                         </Avatar>
                       )}
 
