@@ -1,10 +1,11 @@
-import React, { SetStateAction } from "react";
+import React, { SetStateAction, useEffect } from "react";
 import { Button } from "../ui/button";
 
 interface PropsType {
   isDisabled: boolean;
   onSubmit: (value: string) => void;
   setInput: React.Dispatch<SetStateAction<string>>;
+  isProcessing: boolean;
 }
 
 const prompts = [
@@ -31,21 +32,27 @@ const PatientInsightSuggest = ({
   isDisabled,
   setInput,
   onSubmit,
+  isProcessing,
 }: PropsType) => {
   const handlePromptClick = (prompt: string) => {
     onSubmit(prompt);
     setInput(prompt);
   };
+  useEffect(() => {
+    if (!isProcessing) {
+      setInput("");
+    }
+  }, [isProcessing, setInput]);
   return (
     <div className="relative w-full mb-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 px-2 sm:px-0">
         {randomPrompts?.map((prompt, index) => (
           <Button
             key={index}
             variant="outline"
             size="sm"
             disabled={isDisabled}
-            className="whitespace-nowrap rounded-full cursor-pointer font-normal !text-[12.5px] hover:bg-gray-50"
+            className="whitespace-normal text-center h-auto py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg cursor-pointer font-normal !text-[12.5px] sm:!text-[13px] hover:bg-gray-50 flex items-center justify-center min-h-[42px] sm:min-h-[48px] border-gray-200 hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow"
             onClick={() => handlePromptClick(prompt)}
           >
             {prompt}

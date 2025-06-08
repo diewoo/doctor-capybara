@@ -149,7 +149,7 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                           />
                         )}
 
-                        {!isUser && (
+                        {/* {!isUser && (
                           <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                               variant="ghost"
@@ -164,7 +164,7 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                               )}
                             </Button>
                           </div>
-                        )}
+                        )} */}
                       </div>
 
                       {isUser && (

@@ -43,6 +43,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
           isDisabled={isLoading || isSending || isDisabled}
           setInput={setInput}
           onSubmit={handleSendMessage}
+          isProcessing={isLoading || isSending}
         />
       </div>
 
