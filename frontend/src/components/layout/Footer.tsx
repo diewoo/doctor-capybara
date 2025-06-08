@@ -4,6 +4,12 @@ interface FooterProps {
   currentLang: "es" | "en";
 }
 
+/**
+ * Footer component
+ * @param {FooterProps} props - The props for the Footer component
+ * @param {string} props.currentLang - The current language of the app
+ * @returns {JSX.Element} The Footer component
+ */
 export const Footer: FC<FooterProps> = ({ currentLang }) => {
   return (
     <footer className="bg-gray-800 text-gray-300 py-8">
