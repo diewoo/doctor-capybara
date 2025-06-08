@@ -10,14 +10,7 @@
       "target": "capybara-main-site",
       "public": "frontend/dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-      "rewrites": [{ "source": "**", "destination": "/index.html" }],
-      "redirects": [
-        {
-          "source": "https://www.doctorcapy.com/**",
-          "destination": "https://doctorcapy.com/**",
-          "type": 301
-        }
-      ]
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
     }
   ]
 }
