@@ -1,11 +1,13 @@
 import * as pg from 'pg';
-import { embedQuery } from './embed';
-import { embedQuerySimple } from './embed-simple';
 import * as dotenv from 'dotenv';
+import { EmbeddingService } from './embedding-service';
+import { embedQuery as embedQueryLegacy } from './embed';
+import { embedQuerySimple } from './embed-simple';
 
 dotenv.config();
 
 const pool = new pg.Pool({ connectionString: process.env.SUPABASE_DB_URL });
+const embeddingService = new EmbeddingService();
 
 export type Retrieved = {
   id: string;
@@ -22,12 +24,18 @@ export async function retrieveContext(
   let vec: number[];
 
   try {
-    // Try the main embedding system first
-    vec = await embedQuery(userQuery);
-  } catch (error) {
-    console.log('Main embedding failed, using fallback:', error.message);
-    // Fallback to simple embedding
-    vec = embedQuerySimple(userQuery);
+    // Prefer worker-based embeddings (ESM-safe)
+    vec = await embeddingService.embed(userQuery);
+  } catch (workerError) {
+    console.error('Error embedding query with worker:', workerError);
+    try {
+      // Fallback to legacy (dynamic import path) if available
+      vec = await embedQueryLegacy(userQuery);
+    } catch (legacyError) {
+      console.error('Error embedding query with legacy method:', legacyError);
+      // Last resort fallback (lower quality)
+      vec = embedQuerySimple(userQuery);
+    }
   }
 
   // Convert array to PostgreSQL vector format
