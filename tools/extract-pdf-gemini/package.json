@@ -1,0 +1,29 @@
+{
+  "name": "extract-pdf-gemini",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run index.ts",
+    "start2": "bun run src/index.ts --use-existing --start=1 --end=50"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/pdf-parse": "^1.1.5",
+    "@types/pdfjs-dist": "^2.10.378"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^16.5.0",
+    "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^5.3.31"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "pdf-parse@1.1.1": "patches/pdf-parse@1.1.1.patch"
+    }
+  }
+}

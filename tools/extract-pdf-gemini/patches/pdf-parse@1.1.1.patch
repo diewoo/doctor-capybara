@@ -1,0 +1,28 @@
+diff --git a/.editorconfig b/.editorconfig
+deleted file mode 100644
+index 1c6314a31833395fd5ff016a6506bdd51860657c..0000000000000000000000000000000000000000
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+deleted file mode 100644
+index 044ca9183da536da6da4356073fb41aa027a2e56..0000000000000000000000000000000000000000
+diff --git a/.jsbeautifyrc b/.jsbeautifyrc
+deleted file mode 100644
+index 0fea66edde26f6ddac403dc9b541866fc2909e9c..0000000000000000000000000000000000000000
+diff --git a/.vscode/launch.json b/.vscode/launch.json
+deleted file mode 100644
+index 66e0c574ab315d42f7026c390f98d84fa74669a2..0000000000000000000000000000000000000000
+diff --git a/.vscode/settings.json b/.vscode/settings.json
+deleted file mode 100644
+index 60dfd81ce717edf51eb9b6515610cda039321b78..0000000000000000000000000000000000000000
+diff --git a/index.js b/index.js
+index e9fc367a00904fca3385a05b2b435fed23d14d77..fb8eb89a92839bb22c5b1b862398a6c732c85b81 100644
+--- a/index.js
++++ b/index.js
+@@ -9,7 +9,7 @@ let isDebugMode = !module.parent;
+ 
+ 
+ //for testing purpose
+-if (isDebugMode) {
++if (false) {
+ 
+     let PDF_FILE = './test/data/05-versions-space.pdf';
+     let dataBuffer = Fs.readFileSync(PDF_FILE);

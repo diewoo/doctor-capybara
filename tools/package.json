@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@types/winston": "^2.4.4",
+    "pdf-parse": "^1.1.1",
+    "pdf2json": "^3.1.6",
+    "pdfjs-dist": "^3.11.174",
+    "tesseract.js": "^4.1.1",
+    "winston": "^3.17.0"
+  }
+}
