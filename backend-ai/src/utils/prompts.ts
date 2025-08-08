@@ -49,6 +49,7 @@ export const getPatientChatPrompt = (
   }>,
   onboardingQuestions?: string[],
   isFirstTurn?: boolean,
+  ragContext?: string,
 ) => {
   const recentHistory = conversationHistory.slice(-5); // Puedes ajustar la cantidad
   const history = JSON.stringify(recentHistory, null, 2);
@@ -86,6 +87,7 @@ export const getPatientChatPrompt = (
     2. Da consejos seguros, caseros y útiles.
     3. Si la consulta es grave, indica acudir a un médico presencial.
     4. Si la pregunta es ajena al ámbito médico o autocuidado, indícalo de forma amable.
+    5. Si hay información médica relevante disponible, úsala para enriquecer tu respuesta con datos específicos y actualizados.
 
     📋 CONTEXTO:
     - Título del caso: ${patientTitle}
@@ -94,6 +96,7 @@ export const getPatientChatPrompt = (
     - Historial reciente de conversación: ${history}
     - Preguntas de perfil pendientes: ${JSON.stringify(onboardingQuestions ?? [])}
     - ¿Es primer turno?: ${Boolean(isFirstTurn)}
+    ${ragContext ? `- Información médica relevante: ${ragContext}` : ''}
 
     📌 FORMATO ESPERADO:
     Tu respuesta debe ser solo un string HTML, como el siguiente ejemplo:

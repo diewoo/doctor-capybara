@@ -2,6 +2,10 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { v4 as uuidv4 } from 'uuid';
 import { Patient, ChatMessage } from './interfaces/patient.interface';
+import {
+  PatientInfoInput,
+  PatientProfile,
+} from './interfaces/patient-profile.interface';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { ChatMessageDto } from './dto/chat-message.dto';
@@ -15,10 +19,7 @@ import {
   patientProfileToNarrative,
   buildMissingProfileQuestions,
 } from '../utils/text-processor';
-import {
-  PatientInfoInput,
-  PatientProfile,
-} from './interfaces/patient-profile.interface';
+import { retrieveContext } from '../rag/retrieve';
 
 // Constants for rate limiting and validation
 const MAX_MESSAGE_LENGTH = 1000;
@@ -400,6 +401,30 @@ export class PatientService {
           ? (patient.info as Record<string, unknown>)
           : undefined,
       );
+
+      // Obtener contexto RAG basado en la consulta del usuario
+      let ragContext = '';
+      try {
+        const retrievedDocs = await retrieveContext(
+          chatMessageDto.message,
+          'Español', // o detectar idioma dinámicamente
+          3, // top 3 documentos más relevantes
+        );
+
+        if (retrievedDocs.length > 0) {
+          ragContext =
+            '\n\n📚 INFORMACIÓN MÉDICA RELEVANTE:\n' +
+            retrievedDocs
+              .map(
+                (doc) => `• ${doc.text} (Fuente: ${doc.source}, ${doc.year})`,
+              )
+              .join('\n');
+        }
+      } catch (error) {
+        console.error('Error retrieving RAG context:', error);
+        // Continuar sin RAG si falla
+      }
+
       const prompt = getPatientChatPrompt(
         patient.title,
         processedInfo,
@@ -407,6 +432,7 @@ export class PatientService {
         patient.chat,
         onboardingQuestions,
         patient.chat.length === 0,
+        ragContext, // Pasar el contexto RAG
       );
 
       const result = await model.generateContent(prompt);
@@ -553,6 +579,29 @@ export class PatientService {
           ? (patient.info as Record<string, unknown>)
           : undefined,
       );
+
+      // Obtener contexto RAG basado en la consulta del usuario
+      let ragContext = '';
+      try {
+        const retrievedDocs = await retrieveContext(
+          chatMessageDto.message,
+          'Español',
+          3,
+        );
+
+        if (retrievedDocs.length > 0) {
+          ragContext =
+            '\n\n📚 INFORMACIÓN MÉDICA RELEVANTE:\n' +
+            retrievedDocs
+              .map(
+                (doc) => `• ${doc.text} (Fuente: ${doc.source}, ${doc.year})`,
+              )
+              .join('\n');
+        }
+      } catch (error) {
+        console.error('Error retrieving RAG context:', error);
+      }
+
       const prompt = getPatientChatPrompt(
         patient.title,
         processedInfo,
@@ -560,6 +609,7 @@ export class PatientService {
         patient.chat,
         onboardingQuestions,
         patient.chat.length === 0,
+        ragContext,
       );
 
       const streamResult = await model.generateContentStream(prompt);
