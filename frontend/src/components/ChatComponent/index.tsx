@@ -331,7 +331,7 @@ function ProfileDrawer({
   return (
     <Drawer>
       <DrawerTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" className="cursor-pointer">
           Tu perfil
         </Button>
       </DrawerTrigger>

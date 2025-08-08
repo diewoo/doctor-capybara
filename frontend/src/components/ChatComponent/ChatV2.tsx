@@ -292,7 +292,7 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 px-2 hover:bg-gray-200"
+                                className="h-7 px-2 hover:bg-primary cursor-pointer"
                                 onClick={() => handleCopy(message.content, msgId)}
                               >
                                 {copiedMessageId === msgId ? (

@@ -115,9 +115,9 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
           "h-10 w-10 shrink-0 transition-all duration-200",
           "hover:scale-105 active:scale-95",
           "disabled:opacity-50 disabled:hover:scale-100",
-          "bg-indigo-600 hover:bg-indigo-700",
+          "bg-primary hover:bg-primary/90",
           "shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] hover:shadow-[0_2px_4px_0_rgba(0,0,0,0.1)]",
-          "rounded-xl"
+          "rounded-xl cursor-pointer"
         )}
       >
         {isLoading ? (
