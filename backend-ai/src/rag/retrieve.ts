@@ -1,5 +1,6 @@
 import * as pg from 'pg';
 import { embedQuery } from './embed';
+import { embedQuerySimple } from './embed-simple';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -18,14 +19,27 @@ export async function retrieveContext(
   language: 'Español' | 'English',
   topK = 6,
 ): Promise<Retrieved[]> {
-  const vec = await embedQuery(userQuery);
+  let vec: number[];
+
+  try {
+    // Try the main embedding system first
+    vec = await embedQuery(userQuery);
+  } catch (error) {
+    console.log('Main embedding failed, using fallback:', error.message);
+    // Fallback to simple embedding
+    vec = embedQuerySimple(userQuery);
+  }
+
+  // Convert array to PostgreSQL vector format
+  const vectorString = `[${vec.join(',')}]`;
+
   const sql = `
     SELECT id, text, source, year
     FROM docs
     WHERE language = $1
-    ORDER BY embedding <#> $2
+    ORDER BY embedding <#> $2::vector
     LIMIT $3
   `;
-  const { rows } = await pool.query(sql, [language, vec, topK]);
+  const { rows } = await pool.query(sql, [language, vectorString, topK]);
   return rows as Retrieved[];
 }

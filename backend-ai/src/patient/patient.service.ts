@@ -404,10 +404,19 @@ export class PatientService {
 
       // Obtener contexto RAG basado en la consulta del usuario
       let ragContext = '';
+      let detectedLanguage: 'Español' | 'English' = 'Español'; // Default
+      let retrievedDocs: any[] = []; // Default empty array
+
       try {
-        const retrievedDocs = await retrieveContext(
+        // Detectar idioma automáticamente basado en el mensaje del usuario
+        detectedLanguage = this.detectLanguage(chatMessageDto.message);
+        console.log(
+          `Detected language: ${detectedLanguage} for query: "${chatMessageDto.message}"`,
+        );
+
+        retrievedDocs = await retrieveContext(
           chatMessageDto.message,
-          'Español', // o detectar idioma dinámicamente
+          detectedLanguage, // Usar idioma detectado en lugar de hardcodeado
           3, // top 3 documentos más relevantes
         );
 
@@ -433,6 +442,16 @@ export class PatientService {
         onboardingQuestions,
         patient.chat.length === 0,
         ragContext, // Pasar el contexto RAG
+      );
+
+      // Log prompt details for validation
+      this.logPromptDetails(
+        'sendMessage',
+        detectedLanguage,
+        chatMessageDto.message,
+        ragContext,
+        prompt,
+        retrievedDocs,
       );
 
       const result = await model.generateContent(prompt);
@@ -582,10 +601,19 @@ export class PatientService {
 
       // Obtener contexto RAG basado en la consulta del usuario
       let ragContext = '';
+      let detectedLanguage: 'Español' | 'English' = 'Español'; // Default
+      let retrievedDocs: any[] = []; // Default empty array
+
       try {
-        const retrievedDocs = await retrieveContext(
+        // Detectar idioma automáticamente basado en el mensaje del usuario
+        detectedLanguage = this.detectLanguage(chatMessageDto.message);
+        console.log(
+          `Detected language: ${detectedLanguage} for query: "${chatMessageDto.message}"`,
+        );
+
+        retrievedDocs = await retrieveContext(
           chatMessageDto.message,
-          'Español',
+          detectedLanguage, // Usar idioma detectado
           3,
         );
 
@@ -610,6 +638,16 @@ export class PatientService {
         onboardingQuestions,
         patient.chat.length === 0,
         ragContext,
+      );
+
+      // Log prompt details for validation
+      this.logPromptDetails(
+        'sendMessageStream',
+        detectedLanguage,
+        chatMessageDto.message,
+        ragContext,
+        prompt,
+        retrievedDocs,
       );
 
       const streamResult = await model.generateContentStream(prompt);
@@ -826,5 +864,244 @@ export class PatientService {
       throw new Error('Patient not found');
     }
     return patient.chat;
+  }
+
+  private detectLanguage(text: string): 'Español' | 'English' {
+    // Simple language detection based on common words
+    const spanishWords = [
+      'el',
+      'la',
+      'de',
+      'que',
+      'y',
+      'en',
+      'un',
+      'es',
+      'se',
+      'no',
+      'te',
+      'lo',
+      'le',
+      'da',
+      'su',
+      'por',
+      'son',
+      'con',
+      'para',
+      'al',
+      'del',
+      'los',
+      'las',
+      'una',
+      'como',
+      'más',
+      'pero',
+      'sus',
+      'me',
+      'hasta',
+      'hay',
+      'donde',
+      'han',
+      'quien',
+      'están',
+      'estado',
+      'desde',
+      'todo',
+      'nos',
+      'durante',
+      'todos',
+      'uno',
+      'les',
+      'ni',
+      'contra',
+      'otros',
+      'ese',
+      'eso',
+      'ante',
+      'ellos',
+      'e',
+      'esto',
+      'mí',
+      'antes',
+      'algunos',
+      'qué',
+      'unos',
+      'yo',
+      'otro',
+      'otras',
+      'otra',
+      'él',
+      'tanto',
+      'esa',
+      'estos',
+      'mucho',
+      'quienes',
+      'nada',
+      'muchos',
+      'cual',
+      'poco',
+      'ella',
+      'estar',
+      'estas',
+      'algunas',
+      'algo',
+      'nosotros',
+    ];
+    const englishWords = [
+      'the',
+      'be',
+      'to',
+      'of',
+      'and',
+      'a',
+      'in',
+      'that',
+      'have',
+      'i',
+      'it',
+      'for',
+      'not',
+      'on',
+      'with',
+      'he',
+      'as',
+      'you',
+      'do',
+      'at',
+      'this',
+      'but',
+      'his',
+      'by',
+      'from',
+      'they',
+      'we',
+      'say',
+      'her',
+      'she',
+      'or',
+      'an',
+      'will',
+      'my',
+      'one',
+      'all',
+      'would',
+      'there',
+      'their',
+      'what',
+      'so',
+      'up',
+      'out',
+      'if',
+      'about',
+      'who',
+      'get',
+      'which',
+      'go',
+      'me',
+      'when',
+      'make',
+      'can',
+      'like',
+      'time',
+      'no',
+      'just',
+      'him',
+      'know',
+      'take',
+      'people',
+      'into',
+      'year',
+      'your',
+      'good',
+      'some',
+      'could',
+      'them',
+      'see',
+      'other',
+      'than',
+      'then',
+      'now',
+      'look',
+      'only',
+      'come',
+      'its',
+      'over',
+      'think',
+      'also',
+      'back',
+      'after',
+      'use',
+      'two',
+      'how',
+      'our',
+      'work',
+      'first',
+      'well',
+      'way',
+      'even',
+      'new',
+      'want',
+      'because',
+      'any',
+      'these',
+      'give',
+      'day',
+      'most',
+      'us',
+    ];
+
+    const words = text.toLowerCase().split(/\s+/);
+    let spanishCount = 0;
+    let englishCount = 0;
+
+    for (const word of words) {
+      if (spanishWords.includes(word)) spanishCount++;
+      if (englishWords.includes(word)) englishCount++;
+    }
+
+    return spanishCount >= englishCount ? 'Español' : 'English';
+  }
+
+  private logPromptDetails(
+    method: string,
+    detectedLanguage: string,
+    userMessage: string,
+    ragContext: string,
+    prompt: string,
+    retrievedDocs?: any[],
+  ) {
+    console.log('\n' + '='.repeat(80));
+    console.log(`🔍 PROMPT VALIDATION - ${method.toUpperCase()}`);
+    console.log('='.repeat(80));
+
+    console.log('\n📝 USER MESSAGE:');
+    console.log(`"${userMessage}"`);
+
+    console.log('\n🌐 LANGUAGE DETECTION:');
+    console.log(`Detected: ${detectedLanguage}`);
+
+    if (retrievedDocs && retrievedDocs.length > 0) {
+      console.log('\n📚 RAG CONTEXT RETRIEVED:');
+      retrievedDocs.forEach((doc, index) => {
+        console.log(`${index + 1}. ${doc.text}`);
+        console.log(`   Source: ${doc.source} (${doc.year})`);
+      });
+    }
+
+    console.log('\n🔗 RAG CONTEXT FORMATTED:');
+    console.log(ragContext || 'No RAG context available');
+
+    console.log('\n🤖 FULL PROMPT GENERATED:');
+    console.log('─'.repeat(60));
+    console.log(prompt);
+    console.log('─'.repeat(60));
+
+    console.log('\n📊 PROMPT STATISTICS:');
+    console.log(`- Total characters: ${prompt.length}`);
+    console.log(`- Lines: ${prompt.split('\n').length}`);
+    console.log(`- RAG context length: ${ragContext.length}`);
+    console.log(`- User message length: ${userMessage.length}`);
+
+    console.log('\n' + '='.repeat(80) + '\n');
   }
 }
