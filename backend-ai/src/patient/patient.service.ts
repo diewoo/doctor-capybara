@@ -102,6 +102,7 @@ export class PatientService {
       );
     }
     if (typeof info === 'string') {
+      // Permitir strings vacíos para pacientes iniciales
       if (info.length > MAX_PATIENT_INFO_LENGTH) {
         throw new HttpException(
           `Patient information exceeds maximum length of ${MAX_PATIENT_INFO_LENGTH} characters`,
@@ -162,13 +163,18 @@ export class PatientService {
   async processPatientInfo(
     createPatientDto: CreatePatientDto,
   ): Promise<Patient> {
+    console.log('Processing patient info:', createPatientDto);
     const rawInfo: unknown = createPatientDto.patientInfo as unknown;
+    console.log('Raw info:', rawInfo, 'Type:', typeof rawInfo);
+
     if (!this.isPatientInfoInput(rawInfo)) {
+      console.log('Invalid patient info input');
       throw new HttpException(
         'Invalid patient information format',
         HttpStatus.BAD_REQUEST,
       );
     }
+    console.log('Patient info validation passed');
     this.validatePatientInfo(rawInfo);
 
     const model = this.genAI.getGenerativeModel({
@@ -183,18 +189,25 @@ export class PatientService {
     });
 
     try {
+      console.log('Starting AI processing...');
       const baseInfoNarrativeRaw =
         typeof rawInfo === 'string'
           ? rawInfo
           : patientProfileToNarrative(rawInfo);
+      console.log('Base info narrative raw:', baseInfoNarrativeRaw);
       const baseInfoNarrative = baseInfoNarrativeRaw.trim().length
         ? baseInfoNarrativeRaw
         : 'El usuario aún no ha compartido detalles. Genera un título breve y una descripción HTML inicial con saludo cordial, explicación de que harás algunas preguntas para personalizar consejos, y recordatorio de acudir a un médico presencial ante señales de alarma.';
+      console.log('Base info narrative final:', baseInfoNarrative);
       const prompt = getPatientTitleDescPrompt(baseInfoNarrative);
+      console.log('Generated prompt:', prompt);
+      console.log('Calling Gemini API...');
       const result = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
       });
+      console.log('Gemini API response received');
       const responseText = result.response.text();
+      console.log('Response text:', responseText);
       let response: PatientAnalysisResponse;
 
       try {
@@ -232,9 +245,50 @@ export class PatientService {
       this.patients.set(patient.id, patient);
       return patient;
     } catch (error) {
+      console.error('Error in processPatientInfo:', error);
+
       if (error instanceof HttpException) {
         throw error;
       }
+
+      // Check if it's a Gemini API quota error
+      if (error && typeof error === 'object' && 'message' in error) {
+        const errorMessage = (error as { message?: string }).message;
+        if (
+          (errorMessage && errorMessage.includes('quota')) ||
+          errorMessage?.includes('429')
+        ) {
+          console.log('Gemini API quota exceeded, using fallback response');
+          // Use fallback response when Gemini API is not available
+          const fallbackResponse: PatientAnalysisResponse = {
+            title: 'Consulta inicial',
+            htmlDescription:
+              '<div><p><strong>Hola</strong> 👋 Soy tu asistente de autocuidado. Para orientarte mejor, te haré algunas preguntas breves y luego te compartiré consejos seguros.</p><div style="margin:10px" /><p>Si presentas síntomas intensos o repentinos, por favor acude a un médico presencial.</p></div>',
+          };
+
+          const nowIso = new Date().toISOString();
+          const patient: Patient = {
+            id: uuidv4(),
+            info: rawInfo,
+            title: fallbackResponse.title,
+            htmlDescription: fallbackResponse.htmlDescription,
+            chat: [
+              {
+                role: 'ai',
+                content: fallbackResponse.htmlDescription,
+                timestamp: nowIso,
+              },
+            ],
+            results: [],
+            createdAt: nowIso,
+            updatedAt: nowIso,
+          };
+
+          this.patients.set(patient.id, patient);
+          return patient;
+        }
+      }
+
       throw new HttpException(
         'Failed to process patient information',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -336,7 +390,8 @@ export class PatientService {
           } as PatientInfoInput;
           patient.info = merged;
         }
-      } catch {
+      } catch (error) {
+        console.error('Error extracting profile information:', error);
         // Si falla la extracción, continuamos sin bloquear el chat
       }
 
@@ -388,7 +443,8 @@ export class PatientService {
             .filter((s): s is string => typeof s === 'string')
             .slice(0, 4);
         }
-      } catch {
+      } catch (error) {
+        console.error('Error generating followup suggestions:', error);
         suggestions = [];
       }
 
@@ -419,6 +475,299 @@ export class PatientService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  async sendMessageStream(
+    id: string,
+    chatMessageDto: ChatMessageDto,
+    onDelta: (delta: string) => Promise<void> | void,
+    shouldContinue?: () => boolean,
+  ): Promise<void> {
+    const patient = this.patients.get(id);
+    if (!patient) {
+      throw new HttpException('Patient not found', HttpStatus.NOT_FOUND);
+    }
+
+    this.validateMessage(chatMessageDto.message);
+    this.checkRateLimit(id);
+
+    const model = this.genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
+      },
+    });
+
+    const extractor = this.genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 300,
+        responseMimeType: 'application/json',
+      },
+    });
+
+    try {
+      const baseInfoNarrative =
+        typeof patient.info === 'string'
+          ? patient.info
+          : patientProfileToNarrative(patient.info);
+      const processedInfo = processAndCleanPatientInfo(baseInfoNarrative);
+
+      // Non-blocking attempt to enrich profile from user message
+      try {
+        const { getProfileExtractionPrompt } = await import('../utils/prompts');
+        const extractRes = await extractor.generateContent({
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { text: getProfileExtractionPrompt(chatMessageDto.message) },
+              ],
+            },
+          ],
+        });
+        const extractText = extractRes.response.text();
+        const extracted = JSON.parse(extractText) as Partial<PatientProfile>;
+        if (this.isPatientProfile(extracted) || this.isPlainObject(extracted)) {
+          const currentProfile: Record<string, unknown> =
+            typeof patient.info === 'object' && this.isPlainObject(patient.info)
+              ? patient.info
+              : {};
+          const merged = {
+            ...currentProfile,
+            ...extracted,
+          } as PatientInfoInput;
+          patient.info = merged;
+        }
+      } catch (error) {
+        // ignore extraction failures
+        console.error('Profile extraction failed (non-fatal):', error);
+      }
+
+      const onboardingQuestions = buildMissingProfileQuestions(
+        typeof patient.info === 'object'
+          ? (patient.info as Record<string, unknown>)
+          : undefined,
+      );
+      const prompt = getPatientChatPrompt(
+        patient.title,
+        processedInfo,
+        chatMessageDto.message,
+        patient.chat,
+        onboardingQuestions,
+        patient.chat.length === 0,
+      );
+
+      const streamResult = await model.generateContentStream(prompt);
+      let aiResponse = '';
+      for await (const chunk of streamResult.stream) {
+        if (shouldContinue && !shouldContinue()) {
+          break;
+        }
+        const text = chunk.text();
+        if (text) {
+          aiResponse += text;
+          await onDelta(text);
+        }
+      }
+
+      // If client aborted, skip suggestions and persistence
+      if (shouldContinue && !shouldContinue()) {
+        return;
+      }
+
+      // After stream completes, generate follow-up suggestions
+      let suggestions: string[] = [];
+      try {
+        const { getFollowupSuggestionsPrompt } = await import(
+          '../utils/prompts'
+        );
+        const suggModel = this.genAI.getGenerativeModel({
+          model: 'gemini-2.0-flash',
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 200,
+            responseMimeType: 'application/json',
+          },
+        });
+        const suggPrompt = getFollowupSuggestionsPrompt(
+          patient.title,
+          processedInfo,
+          chatMessageDto.message,
+          aiResponse,
+        );
+        const suggRes = await suggModel.generateContent({
+          contents: [{ role: 'user', parts: [{ text: suggPrompt }] }],
+        });
+        const text = suggRes.response.text();
+        const parsed: unknown = JSON.parse(text);
+        if (Array.isArray(parsed)) {
+          suggestions = (parsed as unknown[])
+            .filter((s): s is string => typeof s === 'string')
+            .slice(0, 4);
+        }
+      } catch (error) {
+        console.error(
+          'Followup suggestion generation failed (non-fatal):',
+          error,
+        );
+      }
+
+      const userMessage: ChatMessage = {
+        role: 'user',
+        content: chatMessageDto.message,
+        timestamp: new Date().toISOString(),
+      };
+      const aiMessage: ChatMessage = {
+        role: 'ai',
+        content: aiResponse,
+        timestamp: new Date().toISOString(),
+        suggestions,
+      };
+
+      patient.chat.push(userMessage, aiMessage);
+      patient.updatedAt = new Date().toISOString();
+      this.patients.set(id, patient);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Failed to process message (stream)',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async sendEditedLastMessageStream(
+    id: string,
+    chatMessageDto: ChatMessageDto,
+    onDelta: (delta: string) => Promise<void> | void,
+    shouldContinue?: () => boolean,
+  ): Promise<void> {
+    const patient = this.patients.get(id);
+    if (!patient) {
+      throw new HttpException('Patient not found', HttpStatus.NOT_FOUND);
+    }
+
+    this.validateMessage(chatMessageDto.message);
+    this.checkRateLimit(id);
+
+    // Find last user turn (user + optional following ai)
+    const lastUserIdx = [...patient.chat]
+      .map((m) => m.role)
+      .lastIndexOf('user');
+    if (lastUserIdx === -1) {
+      throw new HttpException(
+        'No user message to edit',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const historyBefore = patient.chat.slice(0, lastUserIdx);
+
+    const model = this.genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
+      },
+    });
+
+    const baseInfoNarrative =
+      typeof patient.info === 'string'
+        ? patient.info
+        : patientProfileToNarrative(patient.info);
+    const processedInfo = processAndCleanPatientInfo(baseInfoNarrative);
+    const onboardingQuestions = buildMissingProfileQuestions(
+      typeof patient.info === 'object'
+        ? (patient.info as Record<string, unknown>)
+        : undefined,
+    );
+
+    const prompt = getPatientChatPrompt(
+      patient.title,
+      processedInfo,
+      chatMessageDto.message,
+      historyBefore,
+      onboardingQuestions,
+      false,
+    );
+
+    const streamResult = await model.generateContentStream(prompt);
+    let aiResponse = '';
+    for await (const chunk of streamResult.stream) {
+      if (shouldContinue && !shouldContinue()) {
+        break;
+      }
+      const text = chunk.text();
+      if (text) {
+        aiResponse += text;
+        await onDelta(text);
+      }
+    }
+
+    if (shouldContinue && !shouldContinue()) {
+      return;
+    }
+
+    // Generate follow-up suggestions
+    let suggestions: string[] = [];
+    try {
+      const { getFollowupSuggestionsPrompt } = await import('../utils/prompts');
+      const suggModel = this.genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash',
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 200,
+          responseMimeType: 'application/json',
+        },
+      });
+      const suggPrompt = getFollowupSuggestionsPrompt(
+        patient.title,
+        processedInfo,
+        chatMessageDto.message,
+        aiResponse,
+      );
+      const suggRes = await suggModel.generateContent({
+        contents: [{ role: 'user', parts: [{ text: suggPrompt }] }],
+      });
+      const text = suggRes.response.text();
+      const parsed: unknown = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        suggestions = (parsed as unknown[])
+          .filter((s): s is string => typeof s === 'string')
+          .slice(0, 4);
+      }
+    } catch (error) {
+      console.error(
+        'Followup suggestion generation failed (non-fatal):',
+        error,
+      );
+    }
+
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: chatMessageDto.message,
+      timestamp: new Date().toISOString(),
+    };
+    const aiMessage: ChatMessage = {
+      role: 'ai',
+      content: aiResponse,
+      timestamp: new Date().toISOString(),
+      suggestions,
+    };
+
+    // Replace last turn: historyBefore + edited user + ai
+    patient.chat = [...historyBefore, userMessage, aiMessage];
+    patient.updatedAt = new Date().toISOString();
+    this.patients.set(id, patient);
   }
 
   getConversation(id: string): ChatMessage[] {

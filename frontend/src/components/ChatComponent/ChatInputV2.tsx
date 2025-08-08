@@ -1,30 +1,38 @@
 import React, { useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { SendHorizontal, Loader2, Sparkles } from "lucide-react";
+import { SendHorizontal, Loader2, Square } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 interface ChatInputV2Props {
   onSendMessage: (message: string) => void;
+  onSendEdit?: (message: string) => void;
   isLoading: boolean;
   disabled?: boolean;
   value: string;
   setValue: (value: string) => void;
+  onStop?: () => void;
 }
 
 export const ChatInputV2: React.FC<ChatInputV2Props> = ({
   onSendMessage,
+  onSendEdit,
   isLoading,
   disabled = false,
   value,
   setValue,
+  onStop,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (value.trim() && !isLoading && !disabled) {
-      onSendMessage(value.trim());
+      if (onSendEdit) {
+        onSendEdit(value.trim());
+      } else {
+        onSendMessage(value.trim());
+      }
       setValue("");
       // Reset textarea height
       if (textareaRef.current) {
@@ -72,7 +80,7 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
             "bg-white/90",
             "text-gray-700"
           )}
-          disabled={isLoading || disabled}
+          disabled={disabled}
         />
         <div className="absolute right-2 bottom-2 flex items-center gap-2">
           {value.length > 0 && (
@@ -82,6 +90,23 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
           )}
         </div>
       </div>
+
+      {isLoading && (
+        <Button
+          type="button"
+          size="icon"
+          onClick={onStop}
+          className={cn(
+            "h-10 w-10 shrink-0 transition-all duration-200",
+            "hover:scale-105 active:scale-95",
+            "bg-red-600 hover:bg-red-700 text-white",
+            "rounded-xl"
+          )}
+        >
+          <Square className="h-5 w-5" />
+        </Button>
+      )}
+
       <Button
         type="submit"
         size="icon"

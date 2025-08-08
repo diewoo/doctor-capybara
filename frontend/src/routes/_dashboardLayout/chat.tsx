@@ -29,7 +29,7 @@ function ChatPage() {
       try {
         setIsProcessing(true);
         setError(null);
-        const response = await chatService.processPatientInfo({});
+        const response = await chatService.processPatientInfo("");
         if (!mounted) return;
         setPatientId(response.id);
         setPatientDescription(response.htmlDescription);

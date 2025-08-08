@@ -7,6 +7,7 @@ interface PropsType {
   isProcessing: boolean;
   prompts?: string[];
   responseSuggestions?: string[];
+  autoSubmit?: (value: string) => void;
 }
 
 const defaultPrompts = [
@@ -36,6 +37,7 @@ const PatientInsightSuggest = ({
   isProcessing,
   prompts,
   responseSuggestions,
+  autoSubmit,
 }: PropsType) => {
   const suggestions =
     responseSuggestions && responseSuggestions.length > 0
@@ -48,8 +50,12 @@ const PatientInsightSuggest = ({
   const randomPrompts = useMemo(() => pickRandom(suggestions, 4), [suggestionsKey]);
 
   const handlePromptClick = (prompt: string) => {
-    // Prefill el input; no enviamos automáticamente para permitir editar
-    setInput(prompt);
+    if (autoSubmit) {
+      autoSubmit(prompt);
+    } else {
+      // Prefill el input; no enviamos automáticamente para permitir editar
+      setInput(prompt);
+    }
   };
   useEffect(() => {
     if (!isProcessing) {

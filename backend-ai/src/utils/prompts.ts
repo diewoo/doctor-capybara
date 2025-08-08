@@ -155,7 +155,7 @@ export const getFollowupSuggestionsPrompt = (
   aiResponseHtml: string,
 ) => {
   return dedent`
-    Eres un asistente que propone 3–4 preguntas o acciones cortas y útiles para continuar la conversación, basadas en:
+    Eres un asistente que propone 3–4 RESPUESTAS CORTAS en PRIMERA PERSONA que el usuario podría enviar a continuación, basadas en:
     - Título del caso: ${patientTitle}
     - Descripción procesada: ${processedDescription}
     - Último mensaje del usuario: ${userLastMessage}
@@ -163,9 +163,9 @@ export const getFollowupSuggestionsPrompt = (
 
     Reglas:
     - Devuelve SOLO un JSON válido que sea un array de strings (sin markdown ni explicaciones).
-    - Preguntas breves (máx. 90 caracteres) y en español.
-    - Evita repetir lo ya preguntado en esta respuesta.
-    - Prioriza dudas naturales y seguras (duración de síntomas, fiebre, señales de alarma, hábitos, objetivos) y/o una acción simple en casa.
-    - No sugieras fármacos salvo que el usuario lo pida explícitamente.
+    - Cada elemento es una RESPUESTA breve (máx. 90 caracteres) en español, en primera persona.
+    - NO incluyas signos de interrogación ni conviertas en preguntas; deben ser respuestas al/los pedido(s) del asistente (p. ej., edad, sueño, estrés, medicación, alergias, duración, fiebre, señales de alarma, objetivos).
+    - Si el asistente pidió dos datos (p. ej., sueño y estrés), ofrece opciones que combinen ambos en una misma respuesta separadas por ";".
+    - Evita fármacos salvo que el usuario lo pida explícitamente.
   `;
 };

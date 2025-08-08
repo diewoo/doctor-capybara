@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { ChatMessage } from "@/services/chatService";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
-import { Copy, ThumbsDown, Trash2, Check, ArrowDown } from "lucide-react";
+import { Copy, Check, ArrowDown, Pencil } from "lucide-react";
 import TypewriterEffect from "./TypewriterEffect";
 import { Button } from "../ui/button";
 
@@ -10,50 +10,118 @@ interface ChatV2Props {
   messages: ChatMessage[];
   userName: string | null;
   isLoading: boolean;
+  streamingHtml: string | null;
+  onEditLastUser?: (content: string) => void;
+  // Inline edit controls for last user message
+  isEditingLast?: boolean;
+  onStartEditLast?: (content: string) => void;
+  onSaveEditLast?: (content: string) => void;
+  onCancelEditLast?: () => void;
+  isBusy?: boolean;
 }
 
-export const ChatV2: React.FC<ChatV2Props> = ({ messages, userName, isLoading }) => {
+export const ChatV2: React.FC<ChatV2Props> = ({
+  messages,
+  userName,
+  isLoading,
+  streamingHtml,
+  onEditLastUser,
+  isEditingLast,
+  onStartEditLast,
+  onSaveEditLast,
+  onCancelEditLast,
+  isBusy,
+}) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-  const wasAtBottomRef = useRef(true);
   const [showScrollDown, setShowScrollDown] = useState(false);
-
-  const isUserAtBottom = useCallback(() => {
-    const el = chatContainerRef.current;
-    if (!el) return true;
-    const { scrollTop, scrollHeight, clientHeight } = el;
-    return scrollHeight - scrollTop - clientHeight < 20;
-  }, []);
-
-  const scrollToBottom = useCallback(() => {
-    chatContainerRef.current?.scrollTo({
-      top: chatContainerRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, []);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastScrollTop = useRef(0);
+  const [editDraft, setEditDraft] = useState("");
+  const editTextAreaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    wasAtBottomRef.current = isUserAtBottom();
-  }, [messages.length, isUserAtBottom]);
-
-  useEffect(() => {
-    if (wasAtBottomRef.current) {
-      scrollToBottom();
-    }
-  }, [messages, scrollToBottom]);
-
-  useEffect(() => {
-    const el = chatContainerRef.current;
+    const el = editTextAreaRef.current;
     if (!el) return;
-    const onScroll = () => {
-      setShowScrollDown(!isUserAtBottom());
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [editDraft, isEditingLast]);
+
+  // Función simple para ir al final
+  const scrollToBottom = useCallback((smooth = true) => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const scrollOptions: ScrollToOptions = {
+      top: container.scrollHeight,
+      behavior: smooth ? "smooth" : "instant",
     };
-    el.addEventListener("scroll", onScroll);
-    onScroll();
+
+    container.scrollTo(scrollOptions);
+  }, []);
+
+  // Detectar si está cerca del final
+  const isNearBottom = useCallback(() => {
+    const container = chatContainerRef.current;
+    if (!container) return true;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    return scrollHeight - scrollTop - clientHeight < 100;
+  }, []);
+
+  // Auto-scroll cuando hay nuevos mensajes
+  useEffect(() => {
+    // Scroll automático para nuevos mensajes
+    if (!isUserScrolling) {
+      requestAnimationFrame(() => {
+        scrollToBottom(false);
+      });
+    }
+  }, [messages.length, scrollToBottom, isUserScrolling]);
+
+  // Manejo del scroll del usuario
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const currentScrollTop = container.scrollTop;
+      const isScrollingUp = currentScrollTop < lastScrollTop.current;
+      lastScrollTop.current = currentScrollTop;
+
+      // Detectar si el usuario está scrolleando manualmente
+      if (isScrollingUp || !isNearBottom()) {
+        setIsUserScrolling(true);
+        setShowScrollDown(true);
+
+        // Reset después de un tiempo sin scroll
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+
+        scrollTimeoutRef.current = setTimeout(() => {
+          if (isNearBottom()) {
+            setIsUserScrolling(false);
+            setShowScrollDown(false);
+          }
+        }, 1500);
+      } else {
+        // Si está cerca del final, permitir auto-scroll
+        setIsUserScrolling(false);
+        setShowScrollDown(false);
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+
     return () => {
-      el.removeEventListener("scroll", onScroll);
+      container.removeEventListener("scroll", handleScroll);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
     };
-  }, [isUserAtBottom]);
+  }, [isNearBottom]);
 
   const handleCopy = useCallback(async (content: string, id: string) => {
     try {
@@ -64,6 +132,12 @@ export const ChatV2: React.FC<ChatV2Props> = ({ messages, userName, isLoading })
       console.error("Failed to copy text:", err);
     }
   }, []);
+
+  const handleGoToBottom = () => {
+    setIsUserScrolling(false);
+    setShowScrollDown(false);
+    scrollToBottom(true);
+  };
 
   const formatHtml = useCallback((content: string) => {
     return content
@@ -77,18 +151,14 @@ export const ChatV2: React.FC<ChatV2Props> = ({ messages, userName, isLoading })
   }, []);
 
   const sanitizeHtml = useCallback((html: string) => {
-    // Whitelist simple: div, p, ul, li, strong
-    // 1) Remove script/style/iframe and event handlers
     let safe = html
       .replace(/<\/(?:script|style|iframe)>/gi, "")
       .replace(/<(?:script|style|iframe)[^>]*>/gi, "")
       .replace(/ on[a-z]+="[^"]*"/gi, "")
       .replace(/ on[a-z]+='[^']*'/gi, "");
 
-    // 2) Strip attributes from allowed tags
     safe = safe
       .replace(/<(div|p|ul|li|strong)([^>]*)>/gi, "<$1>")
-      // 3) Remove any tag not in whitelist by escaping angle brackets
       .replace(/<(?!\/?(?:div|p|ul|li|strong)\b)[^>]*>/gi, (m) =>
         m.replace(/</g, "&lt;").replace(/>/g, "&gt;")
       );
@@ -101,99 +171,213 @@ export const ChatV2: React.FC<ChatV2Props> = ({ messages, userName, isLoading })
       <div ref={chatContainerRef} className="h-full overflow-y-auto p-3 pt-8 pb-24">
         {messages.length > 0 ? (
           <div className="flex flex-col gap-8 w-full">
-            {messages.map((message, index) => {
-              const isUser = message.role === "user";
-              const isLast = index === messages.length - 1;
-              const msgId = `${message.timestamp}-${index}`;
+            {(() => {
+              const lastUserIdx = messages.map((m) => m.role).lastIndexOf("user");
+              return messages.map((message, index) => {
+                const isUser = message.role === "user";
+                const isLast = index === messages.length - 1;
+                const msgId = `${message.timestamp}-${index}`;
+                const isCurrentlyStreaming = false;
+                const isLastUserMessage = isUser && index === lastUserIdx;
 
-              return (
-                <div
-                  key={msgId}
-                  className={cn("flex items-end group animate-fade-in", {
-                    "justify-end": isUser,
-                  })}
-                >
+                return (
+                  <div
+                    key={msgId}
+                    className={cn("flex items-start group", {
+                      "justify-end": isUser,
+                    })}
+                  >
+                    <div
+                      className={cn(
+                        "flex flex-col space-y-2 text-base max-w-full md:max-w-2xl lg:max-w-4xl mx-2 md:mx-8",
+                        {
+                          "order-1 items-end": isUser,
+                          "order-2 items-start": !isUser,
+                        }
+                      )}
+                    >
+                      <div className="flex gap-3 items-start">
+                        {!isUser && (
+                          <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
+                            <AvatarImage src="/doctor_capybara.jpeg" alt="Doctor Capybara" />
+                            <AvatarFallback>🦫</AvatarFallback>
+                          </Avatar>
+                        )}
+
+                        <div
+                          className={cn("px-4 py-3 rounded-lg shadow-sm relative", {
+                            "bg-blue-600 text-white": isUser,
+                            "bg-gray-100 text-gray-900": !isUser,
+                          })}
+                        >
+                          {isUser ? (
+                            <div className="whitespace-pre-wrap break-words relative">
+                              {isLastUserMessage && isEditingLast ? (
+                                <div className="space-y-2">
+                                  <textarea
+                                    ref={editTextAreaRef}
+                                    className={cn(
+                                      "w-full rounded-md p-2 resize-none overflow-hidden",
+                                      "text-gray-900 bg-white border border-gray-300",
+                                      "focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                                    )}
+                                    rows={1}
+                                    value={editDraft}
+                                    onChange={(e) => setEditDraft(e.target.value)}
+                                    disabled={isBusy}
+                                  />
+                                  <div className="flex gap-2 justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity pointer-events-auto md:pointer-events-none md:group-hover:pointer-events-auto">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={onCancelEditLast}
+                                      disabled={isBusy}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => onSaveEditLast?.(editDraft)}
+                                      disabled={isBusy || !editDraft.trim()}
+                                    >
+                                      Guardar
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div>{message.content}</div>
+                                  <div
+                                    className={cn(
+                                      "mt-2 -mb-1 flex gap-2 justify-end",
+                                      "opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                                    )}
+                                  >
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleCopy(message.content, msgId)}
+                                      className="h-7 px-2 border-blue-200 text-white/90 bg-blue-700 hover:bg-blue-700/90"
+                                    >
+                                      <Copy className="h-3.5 w-3.5 mr-1" /> Copiar
+                                    </Button>
+                                    {isLastUserMessage && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          setEditDraft(message.content);
+                                          onStartEditLast?.(message.content);
+                                        }}
+                                        disabled={isBusy}
+                                        className="h-7 px-2 border-blue-200 text-white/90 bg-blue-700 hover:bg-blue-700/90"
+                                      >
+                                        <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                                      </Button>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ) : (
+                            <div
+                              className="prose prose-sm max-w-none"
+                              dangerouslySetInnerHTML={{
+                                __html: sanitizeHtml(formatHtml(message.content)),
+                              }}
+                            />
+                          )}
+                          {!isUser && !isCurrentlyStreaming && (
+                            <div className="mt-2 -mb-1 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 hover:bg-gray-200"
+                                onClick={() => handleCopy(message.content, msgId)}
+                              >
+                                {copiedMessageId === msgId ? (
+                                  <Check className="h-3.5 w-3.5 mr-1" />
+                                ) : (
+                                  <Copy className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Copiar
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        {isUser && (
+                          <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
+                            <AvatarFallback className="bg-blue-600 text-white text-xs">
+                              {userName?.charAt(0) || "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+
+            {streamingHtml !== null &&
+              (streamingHtml.length === 0 ? (
+                <div className={cn("flex items-start group")}>
                   <div
                     className={cn(
                       "flex flex-col space-y-2 text-base max-w-full md:max-w-2xl lg:max-w-4xl mx-2 md:mx-8",
-                      {
-                        "order-1 items-end": isUser,
-                        "order-2 items-start": !isUser,
-                      }
+                      { "order-2 items-start": true }
                     )}
                   >
-                    <div className="flex gap-2 items-end">
-                      {!isUser && (
-                        <Avatar className="w-10 h-10">
-                          <AvatarImage src="/doctor_capybara.jpeg" alt="Doctor Capybara" />
-                        </Avatar>
-                      )}
-
-                      <div
-                        className={cn("px-4 py-2 rounded-lg shadow-sm", {
-                          "bg-black/80 text-white": isUser,
-                          "bg-white border border-gray-200 text-gray-900 relative": !isUser,
-                        })}
-                      >
-                        {isUser ? (
-                          <div className="whitespace-pre-wrap break-words text-white/90">
-                            {message.content}
-                          </div>
-                        ) : isLast ? (
-                          <div className="min-w-[200px]">
-                            <TypewriterEffect
-                              content={sanitizeHtml(formatHtml(message.content))}
-                              onComplete={() => {
-                                scrollToBottom();
-                              }}
-                              onUpdate={() => {
-                                if (!isUserAtBottom()) {
-                                  scrollToBottom();
-                                }
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <div
-                            className="space-y-4"
-                            dangerouslySetInnerHTML={{
-                              __html: sanitizeHtml(formatHtml(message.content)),
-                            }}
-                          />
-                        )}
-
-                        {!isUser && (
-                          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              aria-label="Copiar"
-                              title="Copiar"
-                              onClick={() => handleCopy(message.content, msgId)}
-                            >
-                              {copiedMessageId === msgId ? (
-                                <Check className="h-4 w-4" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        )}
+                    <div className="flex gap-3 items-start">
+                      <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
+                        <AvatarImage src="/doctor_capybara.jpeg" alt="Doctor Capybara" />
+                        <AvatarFallback>🦫</AvatarFallback>
+                      </Avatar>
+                      <div className="px-4 py-3 rounded-lg shadow-sm bg-gray-100 text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.2s]" />
+                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.1s]" />
+                          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                        </div>
                       </div>
-
-                      {isUser && (
-                        <Avatar className="w-8 h-8">
-                          <AvatarFallback className="bg-black/80 text-white text-sm">
-                            {userName?.charAt(0) || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                      )}
                     </div>
                   </div>
                 </div>
-              );
-            })}
+              ) : (
+                <div className={cn("flex items-start group")}>
+                  <div
+                    className={cn(
+                      "flex flex-col space-y-2 text-base max-w-full md:max-w-2xl lg:max-w-4xl mx-2 md:mx-8",
+                      { "order-2 items-start": true }
+                    )}
+                  >
+                    <div className="flex gap-3 items-start">
+                      <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
+                        <AvatarImage src="/doctor_capybara.jpeg" alt="Doctor Capybara" />
+                        <AvatarFallback>🦫</AvatarFallback>
+                      </Avatar>
+                      <div
+                        className={cn(
+                          "px-4 py-3 rounded-lg shadow-sm relative bg-gray-100 text-gray-900"
+                        )}
+                      >
+                        <div className="min-w-[200px]">
+                          <TypewriterEffect
+                            content={sanitizeHtml(formatHtml(streamingHtml))}
+                            showTypingIndicator
+                            onUpdate={() => {
+                              if (!isUserScrolling) {
+                                scrollToBottom(false);
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-4 h-full py-12">
@@ -215,7 +399,21 @@ export const ChatV2: React.FC<ChatV2Props> = ({ messages, userName, isLoading })
           </div>
         )}
       </div>
-      {/* FAB de "ir al final" removido temporalmente para estabilizar el autoscroll */}
+
+      {/* Botón flotante para ir al final */}
+      {showScrollDown && (
+        <div className="absolute bottom-32 right-6 z-10">
+          <Button
+            onClick={handleGoToBottom}
+            size="icon"
+            className="h-10 w-10 rounded-full shadow-lg bg-white hover:bg-gray-50 text-gray-700 border border-gray-200"
+          >
+            <ArrowDown className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Se eliminó la burbuja superpuesta; el streaming se muestra inline al final de la lista */}
     </div>
   );
 };

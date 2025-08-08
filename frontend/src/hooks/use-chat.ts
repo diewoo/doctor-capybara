@@ -6,11 +6,15 @@ export function useChat(patientId: string) {
   const queryClient = useQueryClient();
 
   // Get conversation history
-  const { data: conversation, isLoading } = useQuery({
+  const {
+    data: conversation,
+    isLoading,
+    refetch: refetchConversation,
+  } = useQuery({
     queryKey: ["conversation", patientId],
     queryFn: async () => {
       const response = await chatService.getConversation(patientId);
-      console.log('Conversation response:', response);
+      console.log("Conversation response:", response);
       return response;
     },
     enabled: !!patientId,
@@ -26,6 +30,29 @@ export function useChat(patientId: string) {
       toast.error(error.message || "Failed to send message");
     },
   });
+
+  // Streaming helper: returns unsubscribe function
+  const streamMessage = (
+    message: string,
+    handlers: {
+      onDelta: (delta: string) => void;
+      onDone?: () => void;
+      onError?: (err: unknown) => void;
+    }
+  ) => {
+    return chatService.streamMessage(patientId, message, handlers);
+  };
+
+  const streamEditLastMessage = (
+    message: string,
+    handlers: {
+      onDelta: (delta: string) => void;
+      onDone?: () => void;
+      onError?: (err: unknown) => void;
+    }
+  ) => {
+    return chatService.streamEditLastMessage(patientId, message, handlers);
+  };
 
   // Get patient info
   const { data: patient, isLoading: isLoadingPatient } = useQuery({
@@ -54,6 +81,9 @@ export function useChat(patientId: string) {
     isSending,
     isUpdating,
     sendMessage,
+    refetchConversation,
+    streamMessage,
+    streamEditLastMessage,
     updatePatient,
   };
-} 
+}
