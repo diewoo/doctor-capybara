@@ -1,13 +1,13 @@
 import { createRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
-import { Header } from "../components/layout/Header";
-import { Footer } from "../components/layout/Footer";
-import { Hero } from "../components/sections/Hero";
-import { About } from "../components/sections/About";
-import { Features } from "../components/sections/Features";
-import { Contact } from "../components/sections/Contact";
-import { CallToAction } from "../components/sections/CallToAction";
-import "../App.css";
+import Header from "@/components/Header";
+import Hero from "@/components/Hero";
+import Features from "@/components/Features";
+import ChatPreview from "@/components/ChatPreview";
+import Compliance from "@/components/Compliance";
+import Footer from "@/components/Footer";
+import MobileCTA from "../components/MobileCTA";
+import HowItWorks from "@/components/HowItWorks";
+import "@/App.css";
 import { rootRoute } from "./__root";
 
 export const indexRoute = createRoute({
@@ -17,28 +17,16 @@ export const indexRoute = createRoute({
 });
 
 function Index() {
-  const [currentLang, setCurrentLang] = useState<"es" | "en">(
-    (localStorage.getItem("doctorcapybara_lang") as "es" | "en") || "es"
-  );
-
-  useEffect(() => {
-    document.documentElement.lang = currentLang;
-    localStorage.setItem("doctorcapybara_lang", currentLang);
-  }, [currentLang]);
-
-  const toggleLanguage = () => {
-    setCurrentLang((prev) => (prev === "es" ? "en" : "es"));
-  };
-
   return (
-    <div className="text-gray-800">
-      <Header currentLang={currentLang} onToggleLanguage={toggleLanguage} />
-      <Hero currentLang={currentLang} />
-      <About currentLang={currentLang} />
-      <Features currentLang={currentLang} />
-      <CallToAction currentLang={currentLang} />
-      <Contact currentLang={currentLang} />
-      <Footer currentLang={currentLang} />
+    <div className="min-h-screen pb-20 sm:pb-0">
+      <Header />
+      <Hero />
+      <Features />
+      <ChatPreview />
+      <HowItWorks />
+      <Compliance />
+      <Footer />
+      <MobileCTA />
     </div>
   );
 }
