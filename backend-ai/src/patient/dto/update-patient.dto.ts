@@ -1,3 +1,5 @@
+import { PatientInfoInput } from '../interfaces/patient-profile.interface';
+
 export class UpdatePatientDto {
-  patientInfo: any;
+  patientInfo: PatientInfoInput; // acepta string u objeto perfilado
 }

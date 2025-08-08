@@ -1,10 +1,4 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { ChatMessage } from "@/services/chatService";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
@@ -18,14 +12,11 @@ interface ChatV2Props {
   isLoading: boolean;
 }
 
-export const ChatV2: React.FC<ChatV2Props> = ({
-  messages,
-  userName,
-  isLoading,
-}) => {
+export const ChatV2: React.FC<ChatV2Props> = ({ messages, userName, isLoading }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const wasAtBottomRef = useRef(true);
+  const [showScrollDown, setShowScrollDown] = useState(false);
 
   const isUserAtBottom = useCallback(() => {
     const el = chatContainerRef.current;
@@ -51,6 +42,19 @@ export const ChatV2: React.FC<ChatV2Props> = ({
     }
   }, [messages, scrollToBottom]);
 
+  useEffect(() => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      setShowScrollDown(!isUserAtBottom());
+    };
+    el.addEventListener("scroll", onScroll);
+    onScroll();
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, [isUserAtBottom]);
+
   const handleCopy = useCallback(async (content: string, id: string) => {
     try {
       await navigator.clipboard.writeText(content);
@@ -72,13 +76,29 @@ export const ChatV2: React.FC<ChatV2Props> = ({
       .replace(/<p>/g, '<p class="mb-2">');
   }, []);
 
+  const sanitizeHtml = useCallback((html: string) => {
+    // Whitelist simple: div, p, ul, li, strong
+    // 1) Remove script/style/iframe and event handlers
+    let safe = html
+      .replace(/<\/(?:script|style|iframe)>/gi, "")
+      .replace(/<(?:script|style|iframe)[^>]*>/gi, "")
+      .replace(/ on[a-z]+="[^"]*"/gi, "")
+      .replace(/ on[a-z]+='[^']*'/gi, "");
+
+    // 2) Strip attributes from allowed tags
+    safe = safe
+      .replace(/<(div|p|ul|li|strong)([^>]*)>/gi, "<$1>")
+      // 3) Remove any tag not in whitelist by escaping angle brackets
+      .replace(/<(?!\/?(?:div|p|ul|li|strong)\b)[^>]*>/gi, (m) =>
+        m.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      );
+
+    return safe;
+  }, []);
+
   return (
     <div className="flex flex-col h-full w-full relative">
-      <div
-        ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-3 pt-8 pb-20"
-        style={{ maxHeight: "calc(100vh - 10.5rem)" }}
-      >
+      <div ref={chatContainerRef} className="h-full overflow-y-auto p-3 pt-8 pb-24">
         {messages.length > 0 ? (
           <div className="flex flex-col gap-8 w-full">
             {messages.map((message, index) => {
@@ -105,31 +125,24 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                     <div className="flex gap-2 items-end">
                       {!isUser && (
                         <Avatar className="w-10 h-10">
-                          <AvatarImage
-                            src="/doctor_capybara.jpeg"
-                            alt="Doctor Capybara"
-                          />
+                          <AvatarImage src="/doctor_capybara.jpeg" alt="Doctor Capybara" />
                         </Avatar>
                       )}
 
                       <div
                         className={cn("px-4 py-2 rounded-lg shadow-sm", {
                           "bg-black/80 text-white": isUser,
-                          "bg-white border border-gray-200 text-gray-900 relative":
-                            !isUser,
+                          "bg-white border border-gray-200 text-gray-900 relative": !isUser,
                         })}
                       >
                         {isUser ? (
-                          <div
-                            className="space-y-4"
-                            dangerouslySetInnerHTML={{
-                              __html: formatHtml(message.content),
-                            }}
-                          />
+                          <div className="whitespace-pre-wrap break-words text-white/90">
+                            {message.content}
+                          </div>
                         ) : isLast ? (
                           <div className="min-w-[200px]">
                             <TypewriterEffect
-                              content={message.content}
+                              content={sanitizeHtml(formatHtml(message.content))}
                               onComplete={() => {
                                 scrollToBottom();
                               }}
@@ -144,17 +157,19 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                           <div
                             className="space-y-4"
                             dangerouslySetInnerHTML={{
-                              __html: formatHtml(message.content),
+                              __html: sanitizeHtml(formatHtml(message.content)),
                             }}
                           />
                         )}
 
-                        {/* {!isUser && (
+                        {!isUser && (
                           <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
+                              aria-label="Copiar"
+                              title="Copiar"
                               onClick={() => handleCopy(message.content, msgId)}
                             >
                               {copiedMessageId === msgId ? (
@@ -164,7 +179,7 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                               )}
                             </Button>
                           </div>
-                        )} */}
+                        )}
                       </div>
 
                       {isUser && (
@@ -190,19 +205,17 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                 Bienvenido a tu asistente con el doctor capybara
               </h3>
               <p className="text-base text-gray-500 max-w-md">
-                Estoy aquí para ayudarte con tus consultas médicas. ¿En qué
-                puedo asistirte hoy?
+                Estoy aquí para ayudarte con tus consultas médicas. ¿En qué puedo asistirte hoy?
               </p>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-400 mt-4">
               <ArrowDown className="h-4 w-4 animate-bounce" />
-              <span>
-                Escribe tu mensaje abajo o usa las sugerencias para comenzar
-              </span>
+              <span>Escribe tu mensaje abajo o usa las sugerencias para comenzar</span>
             </div>
           </div>
         )}
       </div>
+      {/* FAB de "ir al final" removido temporalmente para estabilizar el autoscroll */}
     </div>
   );
 };
