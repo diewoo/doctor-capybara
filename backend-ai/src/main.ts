@@ -11,4 +11,6 @@ async function bootstrap() {
   await app.listen(process.env.PORT || 8080, '0.0.0.0');
 }
 
-bootstrap().catch((err) => console.error('Error starting server:', err));
+bootstrap().catch((err) =>
+  console.error('Error starting server on port:', process.env.PORT, err),
+);
