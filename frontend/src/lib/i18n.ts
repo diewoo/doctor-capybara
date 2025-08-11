@@ -138,6 +138,10 @@ export const translations = {
     // Sidebar & Navigation
     sidebarHome: "Inicio",
     headerSubtitle: "Tu asistente médico de confianza",
+    sidebarNavigation: "Navegación",
+    sidebarSettings: "Configuración",
+    sidebarSettingsText: "Configuración",
+    sidebarLogout: "Cerrar sesión",
 
     // Chat Loading & Errors
     chatPreparing: "Preparando tu chat…",
@@ -306,6 +310,10 @@ export const translations = {
     // Sidebar & Navigation
     sidebarHome: "Home",
     headerSubtitle: "Your trusted medical assistant",
+    sidebarNavigation: "Navigation",
+    sidebarSettings: "Settings",
+    sidebarSettingsText: "Settings",
+    sidebarLogout: "Logout",
 
     // Chat Loading & Errors
     chatPreparing: "Preparing your chat…",
