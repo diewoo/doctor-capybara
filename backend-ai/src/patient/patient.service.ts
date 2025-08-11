@@ -405,27 +405,17 @@ export class PatientService {
           : undefined,
       );
 
-      // Obtener contexto RAG basado en la consulta del usuario
-      let ragContext = '';
-      // Usar idioma preferido si existe; de lo contrario, detectar y fijar
-      let detectedLanguage: 'Español' | 'English' =
-        patient.preferredLanguage ?? 'English';
+      // Detectar idioma del mensaje actual del usuario
+      const detectedLanguage = this.detectLanguage(chatMessageDto.message);
+
+      // Obtener contexto RAG
       let retrievedDocs: any[] = []; // Default empty array
-
+      let ragContext = '';
       try {
-        // Determinar idioma solo si aún no está establecido
-        if (!patient.preferredLanguage) {
-          detectedLanguage = this.detectLanguage(chatMessageDto.message);
-          patient.preferredLanguage = detectedLanguage;
-        }
-        console.log(
-          `Detected language: ${detectedLanguage} for query: "${chatMessageDto.message}"`,
-        );
-
         retrievedDocs = await retrieveContext(
           chatMessageDto.message,
-          detectedLanguage,
-          10, // Aumentado para mejor cobertura
+          detectedLanguage, // Usar el idioma del mensaje actual
+          5,
         );
 
         // RAG mejorado ya filtra por categorías automáticamente
@@ -613,21 +603,14 @@ export class PatientService {
           : undefined,
       );
 
+      // Detectar idioma del mensaje actual del usuario
+      const detectedLanguage = this.detectLanguage(chatMessageDto.message);
+
       // Obtener contexto RAG basado en la consulta del usuario
       let ragContext = '';
-      let detectedLanguage: 'Español' | 'English' =
-        patient.preferredLanguage ?? 'English';
       let retrievedDocs: any[] = []; // Default empty array
 
       try {
-        if (!patient.preferredLanguage) {
-          detectedLanguage = this.detectLanguage(chatMessageDto.message);
-          patient.preferredLanguage = detectedLanguage;
-        }
-        console.log(
-          `Detected language: ${detectedLanguage} for query: "${chatMessageDto.message}"`,
-        );
-
         retrievedDocs = await retrieveContext(
           chatMessageDto.message,
           detectedLanguage,

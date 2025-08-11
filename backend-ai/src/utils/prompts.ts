@@ -107,6 +107,9 @@ export const getPatientChatPrompt = (
 
     📌 IDIOMA:
     - Responde SIEMPRE en ${language === 'English' ? 'inglés' : 'español'}.
+    - Si el usuario escribe en español, responde en español.
+    - Si el usuario escribe en inglés, responde en inglés.
+    - Mantén consistencia con el idioma del mensaje del usuario, no con el idioma del historial.
 
     📌 FORMATO ESPERADO:
     Tu respuesta debe ser solo un string HTML, como el siguiente ejemplo:
@@ -181,6 +184,8 @@ export const getFollowupSuggestionsPrompt = (
     - Cada elemento es una RESPUESTA breve (máx. 90 caracteres) en ${
       language === 'English' ? 'English' : 'Español'
     }, en primera persona.
+    - El idioma de las sugerencias debe coincidir con el idioma del último mensaje del usuario.
+    - Si el usuario cambió de idioma, adapta las sugerencias al nuevo idioma.
     - NO incluyas signos de interrogación ni conviertas en preguntas; deben ser respuestas al/los pedido(s) del asistente (p. ej., edad, sueño, estrés, medicación, alergias, duración, fiebre, señales de alarma, objetivos).
     - Si el asistente pidió dos datos (p. ej., sueño y estrés), ofrece opciones que combinen ambos en una misma respuesta separadas por ";".
     - Evita fármacos salvo que el usuario lo pida explícitamente.
