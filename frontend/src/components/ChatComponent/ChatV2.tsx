@@ -67,18 +67,18 @@ export const ChatV2: React.FC<ChatV2Props> = ({
     if (!container) return true;
 
     const { scrollTop, scrollHeight, clientHeight } = container;
-    return scrollHeight - scrollTop - clientHeight < 100;
+    return scrollHeight - scrollTop - clientHeight < 180;
   }, []);
 
   // Auto-scroll cuando hay nuevos mensajes
   useEffect(() => {
-    // Scroll automático para nuevos mensajes
-    if (!isUserScrolling) {
+    // Scroll automático solo si el usuario está cerca del final
+    if (isNearBottom()) {
       requestAnimationFrame(() => {
         scrollToBottom(false);
       });
     }
-  }, [messages.length, scrollToBottom, isUserScrolling]);
+  }, [messages.length, scrollToBottom, isNearBottom]);
 
   // Manejo del scroll del usuario
   useEffect(() => {
@@ -367,7 +367,7 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                             content={sanitizeHtml(formatHtml(streamingHtml))}
                             showTypingIndicator
                             onUpdate={() => {
-                              if (!isUserScrolling) {
+                              if (isNearBottom()) {
                                 scrollToBottom(false);
                               }
                             }}

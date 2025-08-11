@@ -50,6 +50,7 @@ export const getPatientChatPrompt = (
   onboardingQuestions?: string[],
   isFirstTurn?: boolean,
   ragContext?: string,
+  language: 'Español' | 'English' = 'Español',
 ) => {
   const recentHistory = conversationHistory.slice(-5); // Puedes ajustar la cantidad
   const history = JSON.stringify(recentHistory, null, 2);
@@ -103,6 +104,9 @@ export const getPatientChatPrompt = (
     - Preguntas de perfil pendientes: ${JSON.stringify(onboardingQuestions ?? [])}
     - ¿Es primer turno?: ${Boolean(isFirstTurn)}
     ${ragContext ? `- Información médica relevante: ${ragContext}` : ''}
+
+    📌 IDIOMA:
+    - Responde SIEMPRE en ${language === 'English' ? 'inglés' : 'español'}.
 
     📌 FORMATO ESPERADO:
     Tu respuesta debe ser solo un string HTML, como el siguiente ejemplo:
@@ -163,6 +167,7 @@ export const getFollowupSuggestionsPrompt = (
   processedDescription: string,
   userLastMessage: string,
   aiResponseHtml: string,
+  language: 'Español' | 'English' = 'Español',
 ) => {
   return dedent`
     Eres un asistente que propone 3–4 RESPUESTAS CORTAS en PRIMERA PERSONA que el usuario podría enviar a continuación, basadas en:
@@ -173,9 +178,12 @@ export const getFollowupSuggestionsPrompt = (
 
     Reglas:
     - Devuelve SOLO un JSON válido que sea un array de strings (sin markdown ni explicaciones).
-    - Cada elemento es una RESPUESTA breve (máx. 90 caracteres) en español, en primera persona.
+    - Cada elemento es una RESPUESTA breve (máx. 90 caracteres) en ${
+      language === 'English' ? 'English' : 'Español'
+    }, en primera persona.
     - NO incluyas signos de interrogación ni conviertas en preguntas; deben ser respuestas al/los pedido(s) del asistente (p. ej., edad, sueño, estrés, medicación, alergias, duración, fiebre, señales de alarma, objetivos).
     - Si el asistente pidió dos datos (p. ej., sueño y estrés), ofrece opciones que combinen ambos en una misma respuesta separadas por ";".
     - Evita fármacos salvo que el usuario lo pida explícitamente.
+    - Mantente en el tema del último mensaje del usuario y NO introduzcas condiciones nuevas no mencionadas.
   `;
 };

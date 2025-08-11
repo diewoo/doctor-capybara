@@ -1,48 +1,17 @@
 import { useState, useEffect, useRef } from "react";
+import { useLanguage } from "@/hooks/use-language";
+import { type ChatExample } from "@/lib/i18n";
 
 const ChatPreview = () => {
+  const { t, tChat } = useLanguage();
   const [currentExample, setCurrentExample] = useState(0);
   const [paused, setPaused] = useState(false);
   const resumeTimeoutRef = useRef<number | null>(null);
 
-  const chatExamples = [
-    {
-      userMessage:
-        "I've been feeling really stressed lately and having trouble sleeping. Any natural remedies you'd suggest?",
-      aiResponse: {
-        text: "I understand how challenging stress and sleep issues can be. Let me suggest some gentle, natural approaches:",
-        details: "🌿 Herbal Support:",
-        list: [
-          "• Chamomile tea 30 minutes before bed",
-          "• Passionflower for gentle relaxation",
-          "• Lavender aromatherapy",
-        ],
-      },
-    },
-    {
-      userMessage: "What are some natural ways to boost my energy levels throughout the day?",
-      aiResponse: {
-        text: "Great question! Here are some holistic approaches to naturally enhance your energy:",
-        details: "⚡ Energy Boosters:",
-        list: [
-          "• Start with morning sunlight exposure",
-          "• Try adaptogenic herbs like ashwagandha",
-          "• Stay hydrated with herbal teas",
-        ],
-      },
-    },
-    {
-      userMessage: "I'm looking for natural ways to support my digestive health. Any suggestions?",
-      aiResponse: {
-        text: "Digestive wellness is foundational to overall health! Here are some gentle approaches:",
-        details: "🌱 Digestive Support:",
-        list: [
-          "• Ginger tea after meals",
-          "• Probiotic-rich foods like kefir",
-          "• Mindful eating practices",
-        ],
-      },
-    },
+  const chatExamples: ChatExample[] = [
+    tChat("chatExample1"),
+    tChat("chatExample2"),
+    tChat("chatExample3"),
   ];
 
   useEffect(() => {
@@ -51,7 +20,7 @@ const ChatPreview = () => {
       setCurrentExample((prev) => (prev + 1) % chatExamples.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, [paused]);
+  }, [paused, chatExamples.length]);
 
   const currentChat = chatExamples[currentExample];
 
@@ -59,13 +28,8 @@ const ChatPreview = () => {
     <section id="chat" className="py-16 sm:py-20 hero-gradient scroll-mt-24">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Experience Gentle <span className="text-gradient">AI Guidance</span>
-          </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            See how Doctor Capybara provides compassionate, personalized support for your wellness
-            journey.
-          </p>
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">{t("chatTitle")}</h2>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">{t("chatSubtitle")}</p>
         </div>
 
         <div className="max-w-2xl mx-auto">
@@ -86,15 +50,12 @@ const ChatPreview = () => {
                   <strong>{currentChat.aiResponse.details}</strong>
                 </p>
                 <ul className="text-sm mb-2 pl-4">
-                  {currentChat.aiResponse.list.map((item, index) => (
+                  {currentChat.aiResponse.list.map((item: string, index: number) => (
                     <li key={index}>{item}</li>
                   ))}
                 </ul>
 
-                <p className="text-xs text-muted-foreground mt-2">
-                  Educational suggestions only. Consult your healthcare provider for persistent
-                  issues.
-                </p>
+                <p className="text-xs text-muted-foreground mt-2">{t("educationalOnly")}</p>
               </div>
             </div>
 

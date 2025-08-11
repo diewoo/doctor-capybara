@@ -13,6 +13,7 @@ export interface Patient {
   htmlDescription: string;
   chat: ChatMessage[];
   results: any[];
+  preferredLanguage?: 'Español' | 'English';
   createdAt: string;
   updatedAt: string;
 }

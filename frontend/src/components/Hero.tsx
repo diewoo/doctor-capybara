@@ -1,35 +1,46 @@
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/hooks/use-language";
 
 const Hero = () => {
+  const { t } = useLanguage();
+  const heroTitle = t("heroTitle");
+
   return (
     <section className="min-h-[90vh] md:min-h-screen flex items-center justify-center hero-gradient pt-20">
       <div className="container mx-auto px-4">
         <div className="grid lg:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
           {/* Text Content */}
           <div className="text-center lg:text-left">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-4 md:mb-6 leading-tight">
-              Natural Healing, <span className="text-gradient">AI Powered</span>
+            {/* Título simple sin grid */}
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-4 md:mb-6 leading-tight max-w-[600px] mx-auto lg:mx-0">
+              {Array.isArray(heroTitle) ? heroTitle.join(" ") : heroTitle}
             </h1>
 
-            <p className="text-base sm:text-lg md:text-2xl text-muted-foreground mb-6 md:mb-8 leading-relaxed">
-              Embark on your holistic wellness journey with gentle, AI-guided support that honors
-              the wisdom of traditional healing and natural medicine.
-            </p>
+            {/* Subtítulo con ancho fijo para consistencia entre idiomas */}
+            <div className="mb-6 md:mb-8">
+              <p className="text-base sm:text-lg md:text-2xl text-muted-foreground leading-relaxed max-w-[500px] mx-auto lg:mx-0">
+                {t("heroSubtitle")}
+              </p>
+            </div>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start items-center mb-8">
-              <Button
-                size="lg"
-                className="w-full sm:w-auto gradient-button text-base sm:text-lg px-6 sm:px-8 py-4 cursor-pointer"
-              >
-                Begin Your Wellness Journey
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 py-4 glass-card border-primary/30 cursor-pointer"
-              >
-                Learn More
-              </Button>
+              <a href="/dashboard">
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto gradient-button text-base sm:text-lg px-6 sm:px-8 py-4 cursor-pointer"
+                >
+                  {t("beginJourney")}
+                </Button>
+              </a>
+              <a href="#how">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full sm:w-auto text-base sm:text-lg px-6 sm:px-8 py-4 glass-card border-primary/30 cursor-pointer"
+                >
+                  {t("learnMore")}
+                </Button>
+              </a>
             </div>
           </div>
 
@@ -56,10 +67,7 @@ const Hero = () => {
         {/* Disclaimer */}
         <div className="mt-16 flex justify-center">
           <div className="glass-card p-6 max-w-md rounded-2xl text-center">
-            <p className="text-sm text-muted-foreground">
-              <strong>Educational Information Only:</strong> This AI provides guidance for wellness
-              exploration. Always consult healthcare providers for medical concerns.
-            </p>
+            <p className="text-sm text-muted-foreground">{t("disclaimer")}</p>
           </div>
         </div>
       </div>

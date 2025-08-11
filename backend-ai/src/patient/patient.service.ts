@@ -239,6 +239,7 @@ export class PatientService {
           },
         ],
         results: [],
+        preferredLanguage: 'English',
         createdAt: nowIso,
         updatedAt: nowIso,
       };
@@ -404,21 +405,30 @@ export class PatientService {
 
       // Obtener contexto RAG basado en la consulta del usuario
       let ragContext = '';
-      let detectedLanguage: 'Español' | 'English' = 'Español'; // Default
+      // Usar idioma preferido si existe; de lo contrario, detectar y fijar
+      let detectedLanguage: 'Español' | 'English' =
+        patient.preferredLanguage ?? 'English';
       let retrievedDocs: any[] = []; // Default empty array
 
       try {
-        // Detectar idioma automáticamente basado en el mensaje del usuario
-        detectedLanguage = this.detectLanguage(chatMessageDto.message);
+        // Determinar idioma solo si aún no está establecido
+        if (!patient.preferredLanguage) {
+          detectedLanguage = this.detectLanguage(chatMessageDto.message);
+          patient.preferredLanguage = detectedLanguage;
+        }
         console.log(
           `Detected language: ${detectedLanguage} for query: "${chatMessageDto.message}"`,
         );
 
         retrievedDocs = await retrieveContext(
           chatMessageDto.message,
-          detectedLanguage, // Usar idioma detectado en lugar de hardcodeado
-          3, // top 3 documentos más relevantes
+          detectedLanguage,
+          10, // Aumentado para mejor cobertura
         );
+
+        // RAG mejorado ya filtra por categorías automáticamente
+        // Solo limitar a los 3 documentos más relevantes
+        retrievedDocs = retrievedDocs.slice(0, 3);
 
         if (retrievedDocs.length > 0) {
           ragContext =
@@ -442,6 +452,7 @@ export class PatientService {
         onboardingQuestions,
         patient.chat.length === 0,
         ragContext, // Pasar el contexto RAG
+        detectedLanguage,
       );
 
       // Log prompt details for validation
@@ -477,6 +488,7 @@ export class PatientService {
           processedInfo,
           chatMessageDto.message,
           aiResponse,
+          detectedLanguage,
         );
         const suggRes = await suggModel.generateContent({
           contents: [{ role: 'user', parts: [{ text: suggPrompt }] }],
@@ -601,21 +613,89 @@ export class PatientService {
 
       // Obtener contexto RAG basado en la consulta del usuario
       let ragContext = '';
-      let detectedLanguage: 'Español' | 'English' = 'Español'; // Default
+      let detectedLanguage: 'Español' | 'English' =
+        patient.preferredLanguage ?? 'English';
       let retrievedDocs: any[] = []; // Default empty array
 
       try {
-        // Detectar idioma automáticamente basado en el mensaje del usuario
-        detectedLanguage = this.detectLanguage(chatMessageDto.message);
+        if (!patient.preferredLanguage) {
+          detectedLanguage = this.detectLanguage(chatMessageDto.message);
+          patient.preferredLanguage = detectedLanguage;
+        }
         console.log(
           `Detected language: ${detectedLanguage} for query: "${chatMessageDto.message}"`,
         );
 
         retrievedDocs = await retrieveContext(
           chatMessageDto.message,
-          detectedLanguage, // Usar idioma detectado
-          3,
+          detectedLanguage,
+          6,
         );
+        // Filtrado inteligente por categorías y síntomas para máxima relevancia
+        const queryLower = chatMessageDto.message.toLowerCase();
+
+        // Detectar categoría médica de la consulta
+        const medicalCategories = [
+          'fiebre',
+          'fever',
+          'dolor',
+          'pain',
+          'tos',
+          'cough',
+          'dolor de cabeza',
+          'headache',
+          'náusea',
+          'nausea',
+          'vómito',
+          'vomit',
+          'diarrea',
+          'diarrhea',
+          'fatiga',
+          'fatigue',
+          'ansiedad',
+          'anxiety',
+          'depresión',
+          'depression',
+          'insomnio',
+          'insomnia',
+          'alergia',
+          'allergy',
+          'asma',
+          'asthma',
+          'diabetes',
+          'hipertensión',
+          'hypertension',
+        ];
+
+        const detectedCategory = medicalCategories.find((cat) =>
+          queryLower.includes(cat.toLowerCase()),
+        );
+
+        // Filtrar documentos por categoría y síntoma si se detecta
+        if (detectedCategory) {
+          retrievedDocs = retrievedDocs.filter((doc) => {
+            const docText = doc.text.toLowerCase();
+            const docCategory = (
+              doc.category ||
+              doc.categoria ||
+              ''
+            ).toLowerCase();
+            const docSymptom = (doc.symptom || doc.sintoma || '').toLowerCase();
+
+            // Priorizar documentos que coincidan en categoría o síntoma
+            const categoryMatch =
+              docCategory.includes(detectedCategory.toLowerCase()) ||
+              docSymptom.includes(detectedCategory.toLowerCase());
+
+            // También considerar coincidencias en el texto principal
+            const textMatch = docText.includes(detectedCategory.toLowerCase());
+
+            return categoryMatch || textMatch;
+          });
+        }
+
+        // Limitar a los 3 documentos más relevantes
+        retrievedDocs = retrievedDocs.slice(0, 3);
 
         if (retrievedDocs.length > 0) {
           ragContext =
@@ -638,6 +718,7 @@ export class PatientService {
         onboardingQuestions,
         patient.chat.length === 0,
         ragContext,
+        detectedLanguage,
       );
 
       // Log prompt details for validation
@@ -687,6 +768,7 @@ export class PatientService {
           processedInfo,
           chatMessageDto.message,
           aiResponse,
+          detectedLanguage,
         );
         const suggRes = await suggModel.generateContent({
           contents: [{ role: 'user', parts: [{ text: suggPrompt }] }],
@@ -1104,4 +1186,209 @@ export class PatientService {
 
     console.log('\n' + '='.repeat(80) + '\n');
   }
+
+  private tokenizeForFilter(text: string): string[] {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Záéíóúñü0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !this.stopwords.has(w));
+  }
+
+  private getNegativeTermsForQuery(queryTokens: string[]): string[] {
+    // Si la consulta habla de fiebre, evita documentos sobre depresión, etc.
+    const negatives: string[] = [];
+    const hasFever =
+      queryTokens.includes('fiebre') || queryTokens.includes('fever');
+    if (hasFever) {
+      negatives.push('depresion', 'depression');
+    }
+    return negatives;
+  }
+
+  private stopwords: Set<string> = new Set([
+    // ES
+    'el',
+    'la',
+    'los',
+    'las',
+    'de',
+    'del',
+    'que',
+    'y',
+    'en',
+    'un',
+    'una',
+    'es',
+    'se',
+    'no',
+    'lo',
+    'por',
+    'con',
+    'para',
+    'al',
+    'como',
+    'mas',
+    'más',
+    'pero',
+    'sus',
+    'me',
+    'hasta',
+    'hay',
+    'donde',
+    'han',
+    'quien',
+    'estan',
+    'están',
+    'desde',
+    'todo',
+    'nos',
+    'durante',
+    'todos',
+    'uno',
+    'les',
+    'ni',
+    'contra',
+    'otros',
+    'ese',
+    'eso',
+    'ante',
+    'ellos',
+    'esto',
+    'mi',
+    'mí',
+    'antes',
+    'algunos',
+    'unos',
+    'yo',
+    'otra',
+    'otro',
+    'otras',
+    'mucho',
+    'nada',
+    'muchos',
+    'cual',
+    'cuales',
+    'poco',
+    'ella',
+    'estar',
+    'estas',
+    'algunas',
+    'algo',
+    'nosotros',
+    'tu',
+    'tú',
+    'te',
+    'debe',
+    'debes',
+    'puedo',
+    'puedes',
+    'puede',
+    'hacer',
+    'hago',
+    'haces',
+    'hace',
+    // EN
+    'the',
+    'be',
+    'to',
+    'of',
+    'and',
+    'a',
+    'in',
+    'that',
+    'have',
+    'i',
+    'it',
+    'for',
+    'not',
+    'on',
+    'with',
+    'he',
+    'as',
+    'you',
+    'do',
+    'at',
+    'this',
+    'but',
+    'his',
+    'by',
+    'from',
+    'they',
+    'we',
+    'say',
+    'her',
+    'she',
+    'or',
+    'an',
+    'will',
+    'my',
+    'one',
+    'all',
+    'would',
+    'there',
+    'their',
+    'what',
+    'so',
+    'up',
+    'out',
+    'if',
+    'about',
+    'who',
+    'get',
+    'which',
+    'go',
+    'me',
+    'when',
+    'make',
+    'can',
+    'like',
+    'time',
+    'just',
+    'him',
+    'know',
+    'take',
+    'people',
+    'into',
+    'year',
+    'your',
+    'good',
+    'some',
+    'could',
+    'them',
+    'see',
+    'other',
+    'than',
+    'then',
+    'now',
+    'look',
+    'only',
+    'come',
+    'its',
+    'over',
+    'think',
+    'also',
+    'back',
+    'after',
+    'use',
+    'two',
+    'how',
+    'our',
+    'work',
+    'first',
+    'well',
+    'way',
+    'even',
+    'new',
+    'want',
+    'because',
+    'any',
+    'these',
+    'give',
+    'day',
+    'most',
+    'us',
+  ]);
 }

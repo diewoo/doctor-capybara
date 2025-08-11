@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useLanguage } from "@/hooks/use-language";
 
 const Header = () => {
   const [scrolled, setScrolled] = useState(false);
+  const { language, changeLanguage, t } = useLanguage();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -29,71 +31,102 @@ const Header = () => {
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center space-x-8">
             <a href="#features" className="text-foreground hover:text-primary transition-colors">
-              Features
+              {t("features")}
             </a>
             <a href="#how" className="text-foreground hover:text-primary transition-colors">
-              How It Works
+              {t("howItWorks")}
             </a>
-            {/* <a href="#about" className="text-foreground hover:text-primary transition-colors">
-              About
-            </a> */}
           </nav>
 
-          {/* CTA desktop */}
-          <div className="hidden md:block">
+          {/* Language selector and CTA desktop */}
+          <div className="hidden md:flex items-center space-x-4">
+            <div className="flex items-center space-x-1 bg-white/90 backdrop-blur-sm rounded-lg p-1 shadow-lg border border-white/20">
+              <button
+                onClick={() => changeLanguage("es")}
+                className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+                  language === "es"
+                    ? "bg-primary text-white shadow-md"
+                    : "text-gray-700 hover:text-primary hover:bg-white/50"
+                }`}
+              >
+                ES
+              </button>
+              <button
+                onClick={() => changeLanguage("en")}
+                className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+                  language === "en"
+                    ? "bg-primary text-white shadow-md"
+                    : "text-gray-700 hover:text-primary hover:bg-white/50"
+                }`}
+              >
+                EN
+              </button>
+            </div>
             <a href="/dashboard">
               <Button size="sm" className="gradient-button cursor-pointer">
-                Start Your Journey
+                {t("startJourney")}
               </Button>
             </a>
           </div>
 
-          {/* Mobile menu button with shadcn sheet */}
+          {/* Mobile menu button */}
           <Sheet>
             <SheetTrigger asChild>
-              <button
-                aria-label="Open Menu"
-                className="md:hidden p-2 rounded-md border border-border"
-              >
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
+              <button className="md:hidden p-2 rounded-lg hover:bg-white/10 transition-colors">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
                 </svg>
               </button>
             </SheetTrigger>
+
             <SheetContent side="right">
               <nav className="flex flex-col gap-4 p-4">
                 <a
                   href="#features"
                   className="text-foreground hover:text-primary transition-colors"
                 >
-                  Features
+                  {t("features")}
                 </a>
                 <a href="#how" className="text-foreground hover:text-primary transition-colors">
-                  How It Works
+                  {t("howItWorks")}
                 </a>
-                <a href="#about" className="text-foreground hover:text-primary transition-colors">
-                  About
-                </a>
+
+                {/* Language selector mobile */}
+                <div className="flex items-center justify-center space-x-1 bg-white/90 backdrop-blur-sm rounded-lg p-1 shadow-lg border border-white/20">
+                  <button
+                    onClick={() => changeLanguage("es")}
+                    className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+                      language === "es"
+                        ? "bg-primary text-white shadow-md"
+                        : "text-gray-700 hover:text-primary hover:bg-white/50"
+                    }`}
+                  >
+                    ES
+                  </button>
+                  <button
+                    onClick={() => changeLanguage("en")}
+                    className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+                      language === "en"
+                        ? "bg-primary text-white shadow-md"
+                        : "text-gray-700 hover:text-primary hover:bg-white/50"
+                    }`}
+                  >
+                    EN
+                  </button>
+                </div>
+
                 <a href="/dashboard">
-                  <Button className="w-full gradient-button">Start Your Journey</Button>
+                  <Button className="w-full gradient-button">{t("startJourney")}</Button>
                 </a>
               </nav>
             </SheetContent>
           </Sheet>
         </div>
-
-        {/* Mobile dropdown no longer needed with Sheet */}
       </div>
     </header>
   );

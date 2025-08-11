@@ -242,26 +242,8 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
         />
       </div>
 
-      {/* Área fija de sugerencias */}
-      <div className="border-t px-4 pt-2">
-        <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1 px-2">
-          Sugerencias de respuesta
-        </div>
-        <PatientInsightSuggest
-          isDisabled={isLoading || isSending || streamingHtml !== null || isDisabled}
-          setInput={setInput}
-          isProcessing={isLoading || isSending || streamingHtml !== null}
-          prompts={buildContextualPrompts(patient?.info)}
-          responseSuggestions={
-            Array.isArray(conversation) && conversation.length > 0
-              ? conversation[conversation.length - 1]?.suggestions
-              : undefined
-          }
-        />
-      </div>
-
       {/* Área fija de input */}
-      <div className="px-4 pt-2 pb-4">
+      <div className="px-4 pt-2 pb-2 border-t">
         <ChatInputV2
           onSendMessage={handleSendMessage}
           onSendEdit={isEditingLast ? handleSendEdit : undefined}
@@ -281,13 +263,45 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
           }}
         />
       </div>
+
+      {/* Área de sugerencias debajo del input (opcional) */}
+      {Array.isArray(conversation) && conversation.length > 0 && (
+        <div className="px-4 pt-2 pb-4">
+          <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1 px-2">
+            Sugerencias de respuesta
+          </div>
+          <PatientInsightSuggest
+            isDisabled={isLoading || isSending || streamingHtml !== null || isDisabled}
+            setInput={setInput}
+            isProcessing={isLoading || isSending || streamingHtml !== null}
+            prompts={buildContextualPrompts(patient?.info, patient?.preferredLanguage)}
+            responseSuggestions={
+              Array.isArray(conversation) && conversation.length > 0
+                ? conversation[conversation.length - 1]?.suggestions
+                : undefined
+            }
+          />
+        </div>
+      )}
     </div>
   );
 };
 
 export default ChatComponent;
 
-function buildContextualPrompts(info: any | undefined): string[] {
+function buildContextualPrompts(
+  info: any | undefined,
+  language: "Español" | "English" = "Español"
+): string[] {
+  if (language === "English") {
+    // Simple English fallback prompts
+    return [
+      "I'm [age] years old and feel [symptom], what do you recommend?",
+      "I'm not sleeping well; what can I do at home?",
+      "I'm taking [name/dose/frequency], is there anything I should consider?",
+      "My goals are [improve sleep/energy], where should I start?",
+    ];
+  }
   if (!info || typeof info !== "object") {
     return [
       "Tengo X años y me siento [síntoma], ¿qué me recomiendas?",
