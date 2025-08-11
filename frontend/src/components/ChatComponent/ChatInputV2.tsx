@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SendHorizontal, Square, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ChatInputV2Props {
   onSendMessage: (message: string) => void;
@@ -26,6 +27,7 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
 }) => {
   const { t } = useLanguage();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isMobile = useIsMobile();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +65,10 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
   return (
     <form
       onSubmit={handleSubmit}
-      className="relative flex items-end gap-2 p-4 border-t bg-white/80 backdrop-blur-sm shadow-[0_-2px_4px_-1px_rgba(0,0,0,0.03)]"
+      className={cn(
+        "relative flex items-end gap-2 border-t bg-white/80 backdrop-blur-sm shadow-[0_-2px_4px_-1px_rgba(0,0,0,0.03)]",
+        isMobile ? "p-2" : "p-4" // Menos padding en mobile
+      )}
     >
       <div className="relative flex-1">
         <Textarea
@@ -80,7 +85,8 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
             "rounded-xl border-gray-200/80",
             "shadow-[0_1px_2px_0_rgba(0,0,0,0.03)] hover:shadow-[0_2px_4px_0_rgba(0,0,0,0.05)]",
             "bg-white/90",
-            "text-gray-700"
+            "text-gray-700",
+            isMobile ? "text-base" : "text-sm" // Texto más grande en mobile
           )}
           disabled={disabled}
         />
@@ -99,13 +105,14 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
           size="icon"
           onClick={onStop}
           className={cn(
-            "h-10 w-10 shrink-0 transition-all duration-200",
+            "transition-all duration-200",
             "hover:scale-105 active:scale-95",
             "bg-red-600 hover:bg-red-700 text-white",
-            "rounded-xl"
+            "rounded-xl",
+            isMobile ? "h-12 w-12" : "h-10 w-10" // Botón más grande en mobile
           )}
         >
-          <Square className="h-5 w-5" />
+          <Square className={cn(isMobile ? "h-6 w-6" : "h-5 w-5")} />
         </Button>
       )}
 
@@ -114,18 +121,19 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
         size="icon"
         disabled={!value.trim() || isLoading || disabled}
         className={cn(
-          "h-10 w-10 shrink-0 transition-all duration-200",
+          "transition-all duration-200",
           "hover:scale-105 active:scale-95",
           "disabled:opacity-50 disabled:hover:scale-100",
           "bg-primary hover:bg-primary/90",
           "shadow-[0_1px_2px_0_rgba(0,0,0,0.05)] hover:shadow-[0_2px_4px_0_rgba(0,0,0,0.1)]",
-          "rounded-xl cursor-pointer"
+          "rounded-xl cursor-pointer",
+          isMobile ? "h-12 w-12" : "h-10 w-10" // Botón más grande en mobile
         )}
       >
         {isLoading ? (
-          <Loader2 className="h-5 w-5 animate-spin text-white" />
+          <Loader2 className={cn(isMobile ? "h-6 w-6" : "h-5 w-5", "animate-spin text-white")} />
         ) : (
-          <SendHorizontal className="h-5 w-5 text-white" />
+          <SendHorizontal className={cn(isMobile ? "h-6 w-6" : "h-5 w-5", "text-white")} />
         )}
       </Button>
     </form>
