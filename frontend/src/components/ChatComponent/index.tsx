@@ -188,9 +188,9 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
   }, [conversation, initialHtml, pendingUserMessage, isEditingLast]);
 
   return (
-    <div className="flex flex-col h-full p-3.5">
+    <div className="flex flex-col h-full">
       {/* Header con título de caso y estado */}
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-gray-100 px-4 py-2 rounded-t-md">
+      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-gray-100 px-4 py-2">
         <div className="flex items-center gap-3">
           <img
             src="/doctor_capybara.jpeg"
@@ -213,7 +213,8 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 px-4 pb-2">
+      {/* Chat messages - área flexible */}
+      <div className="flex-1 min-h-0 px-4">
         <ChatV2
           messages={allMessages as any}
           userName={userName}
@@ -222,10 +223,8 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
           isEditingLast={isEditingLast}
           isBusy={isLoading || isSending || streamingHtml !== null}
           onStartEditLast={(content) => {
-            // Prefill input solo como backup; el edit es inline
             setInput(content);
             setIsEditingLast(true);
-            // Cancelar stream si estaba en curso
             streamAbortRef.current?.();
             streamAbortRef.current = null;
             if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
@@ -244,47 +243,47 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
         />
       </div>
 
-      {/* Área fija de input */}
-      <div className="px-4 pt-2 pb-2 border-t">
-        <ChatInputV2
-          onSendMessage={handleSendMessage}
-          onSendEdit={isEditingLast ? handleSendEdit : undefined}
-          isLoading={isLoading || isSending || streamingHtml !== null}
-          disabled={isDisabled}
-          value={input}
-          setValue={setInput}
-          onStop={() => {
-            streamAbortRef.current?.();
-            streamAbortRef.current = null;
-            if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-            rafRef.current = null;
-            pendingDeltaRef.current = "";
-            setStreamingHtml(null);
-            setIsDisabled(false);
-            setIsEditingLast(false);
-          }}
-        />
-      </div>
-
-      {/* Área de sugerencias debajo del input (opcional) */}
-      {Array.isArray(conversation) && conversation.length > 0 && (
-        <div className="px-4 pt-2 pb-4">
-          <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1 px-2">
-            {t("chatSuggestedResponses")}
-          </div>
-          <PatientInsightSuggest
-            isDisabled={isLoading || isSending || streamingHtml !== null || isDisabled}
-            setInput={setInput}
-            isProcessing={isLoading || isSending || streamingHtml !== null}
-            prompts={buildContextualPrompts(patient?.info, patient?.preferredLanguage)}
-            responseSuggestions={
-              Array.isArray(conversation) && conversation.length > 0
-                ? conversation[conversation.length - 1]?.suggestions
-                : undefined
-            }
+      {/* Input y sugerencias integrados en un solo contenedor */}
+      <div className="border-t bg-white">
+        {/* Input principal */}
+        <div className="px-4 py-2">
+          <ChatInputV2
+            onSendMessage={handleSendMessage}
+            onSendEdit={isEditingLast ? handleSendEdit : undefined}
+            isLoading={isLoading || isSending || streamingHtml !== null}
+            disabled={isDisabled}
+            value={input}
+            setValue={setInput}
+            onStop={() => {
+              streamAbortRef.current?.();
+              streamAbortRef.current = null;
+              if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+              rafRef.current = null;
+              pendingDeltaRef.current = "";
+              setStreamingHtml(null);
+              setIsDisabled(false);
+              setIsEditingLast(false);
+            }}
           />
         </div>
-      )}
+
+        {/* Sugerencias integradas - solo mostrar si hay conversación */}
+        {Array.isArray(conversation) && conversation.length > 0 && (
+          <div className="px-4 pb-3">
+            <PatientInsightSuggest
+              isDisabled={isLoading || isSending || streamingHtml !== null || isDisabled}
+              setInput={setInput}
+              isProcessing={isLoading || isSending || streamingHtml !== null}
+              prompts={buildContextualPrompts(patient?.info, patient?.preferredLanguage)}
+              responseSuggestions={
+                Array.isArray(conversation) && conversation.length > 0
+                  ? conversation[conversation.length - 1]?.suggestions
+                  : undefined
+              }
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

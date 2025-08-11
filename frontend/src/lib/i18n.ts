@@ -131,6 +131,10 @@ export const translations = {
     chatSend: "Enviar",
     chatCharacters: "caracteres",
 
+    // Suggestions Header
+    suggestionsShow: "Mostrar sugerencias",
+    suggestionsHide: "Ocultar sugerencias",
+
     // Sidebar & Navigation
     sidebarHome: "Inicio",
     headerSubtitle: "Tu asistente médico de confianza",
@@ -294,6 +298,10 @@ export const translations = {
     chatTypeMessage: "Type your message...",
     chatSend: "Send",
     chatCharacters: "characters",
+
+    // Suggestions Header
+    suggestionsShow: "Show suggestions",
+    suggestionsHide: "Hide suggestions",
 
     // Sidebar & Navigation
     sidebarHome: "Home",
