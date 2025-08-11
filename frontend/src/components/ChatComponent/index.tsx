@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ChatComponentProps {
   patientId: string;
@@ -24,6 +25,7 @@ interface ChatComponentProps {
 }
 
 const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, initialHtml }) => {
+  const { t } = useLanguage();
   const {
     conversation,
     sendMessage,
@@ -197,12 +199,12 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
           />
           <div className="min-w-0">
             <div className="text-sm font-semibold text-gray-900 truncate">
-              {patient?.title || "Tu consulta"}
+              {patient?.title || t("chatYourConsultation")}
             </div>
             <div className="text-xs text-gray-500 truncate">
               {isLoading || isSending || streamingHtml !== null
-                ? "Doctor Capybara está escribiendo…"
-                : "Listo para ayudarte"}
+                ? t("chatDoctorTyping")
+                : t("chatReadyToHelp")}
             </div>
           </div>
           <div className="ml-auto">
@@ -268,7 +270,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
       {Array.isArray(conversation) && conversation.length > 0 && (
         <div className="px-4 pt-2 pb-4">
           <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1 px-2">
-            Sugerencias de respuesta
+            {t("chatSuggestedResponses")}
           </div>
           <PatientInsightSuggest
             isDisabled={isLoading || isSending || streamingHtml !== null || isDisabled}
@@ -293,43 +295,41 @@ function buildContextualPrompts(
   info: any | undefined,
   language: "Español" | "English" = "Español"
 ): string[] {
+  const { t } = useLanguage();
+
   if (language === "English") {
-    // Simple English fallback prompts
     return [
-      "I'm [age] years old and feel [symptom], what do you recommend?",
-      "I'm not sleeping well; what can I do at home?",
-      "I'm taking [name/dose/frequency], is there anything I should consider?",
-      "My goals are [improve sleep/energy], where should I start?",
+      String(t("promptAgeSymptom")),
+      String(t("promptSleep")),
+      String(t("promptMedication")),
+      String(t("promptGoals")),
     ];
   }
+
   if (!info || typeof info !== "object") {
     return [
-      "Tengo X años y me siento [síntoma], ¿qué me recomiendas?",
-      "No duermo bien por la tos, ¿qué puedo hacer en casa?",
-      "Estoy tomando algo para la gripe, ¿qué debo tener en cuenta?",
-      "Mis objetivos son [mejorar sueño/energía], ¿por dónde empiezo?",
+      String(t("promptAgeSymptom")),
+      String(t("promptSleep")),
+      String(t("promptMedication")),
+      String(t("promptGoals")),
     ];
   }
 
   const prompts: string[] = [];
-  if (!info.age) prompts.push("Tengo [edad] años, ¿qué me recomiendas?");
+  if (!info.age) prompts.push(String(t("promptAgeSymptom")));
   const lifestyle = info.lifestyle || {};
-  if (!lifestyle.sleepHabits) prompts.push("No estoy durmiendo bien, ¿qué puedo hacer en casa?");
-  if (!lifestyle.stressLevels)
-    prompts.push("Siento estrés leve, ¿qué técnicas de relajación me sugieres?");
-  if (!info.medications)
-    prompts.push("Estoy tomando [nombre/dosis/frecuencia], ¿es adecuado mezclar con otras cosas?");
-  if (!info.geneticFamilyHistory)
-    prompts.push("Hay antecedentes en mi familia, ¿qué señales debería vigilar?");
-  if (!info.personalGoals)
-    prompts.push("Mis objetivos son [mejorar sueño/energía], ¿qué pasos simples puedo seguir?");
+  if (!lifestyle.sleepHabits) prompts.push(String(t("promptSleep")));
+  if (!lifestyle.stressLevels) prompts.push(String(t("promptStress")));
+  if (!info.medications) prompts.push(String(t("promptMedication")));
+  if (!info.geneticFamilyHistory) prompts.push(String(t("promptFamilyHistory")));
+  if (!info.personalGoals) prompts.push(String(t("promptGoals")));
 
   // fallback si hay pocos prompts
   if (prompts.length < 4) {
     prompts.push(
-      "¿Qué puedo hacer en casa para sentirme mejor?",
-      "¿Cuándo debería acudir a un médico presencial?",
-      "¿Cuánto tiempo suele durar esta molestia?"
+      String(t("promptHomeRemedies")),
+      String(t("promptWhenToDoctor")),
+      String(t("promptDuration"))
     );
   }
   return prompts.slice(0, 6);
@@ -342,63 +342,66 @@ function ProfileDrawer({
   patient: any;
   onQueueUpdate: (data: any) => void;
 }) {
+  const { t } = useLanguage();
+
   return (
     <Drawer>
       <DrawerTrigger asChild>
         <Button variant="outline" size="sm" className="cursor-pointer">
-          Tu perfil
+          {String(t("chatYourProfile"))}
         </Button>
       </DrawerTrigger>
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>Tu perfil</DrawerTitle>
-          <DrawerDescription>
-            Edita los datos que quieras compartir para personalizar las recomendaciones.
-          </DrawerDescription>
+          <DrawerTitle>{String(t("chatYourProfile"))}</DrawerTitle>
+          <DrawerDescription>{String(t("chatEditProfile"))}</DrawerDescription>
         </DrawerHeader>
         <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-xs text-gray-600">Edad</label>
-            <Input placeholder="Ej. 31" defaultValue={patient?.info?.age ?? ""} />
+            <label className="text-xs text-gray-600">{String(t("chatAge"))}</label>
+            <Input
+              placeholder={String(t("chatAgeExample"))}
+              defaultValue={patient?.info?.age ?? ""}
+            />
           </div>
           <div className="space-y-2">
-            <label className="text-xs text-gray-600">Género</label>
+            <label className="text-xs text-gray-600">{String(t("chatGender"))}</label>
             <Input
-              placeholder="Ej. femenino/masculino/no binario"
+              placeholder={String(t("chatGenderExample"))}
               defaultValue={patient?.info?.gender ?? ""}
             />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <label className="text-xs text-gray-600">Medicaciones</label>
+            <label className="text-xs text-gray-600">{String(t("chatMedications"))}</label>
             <Textarea
-              placeholder="Nombre / dosis / frecuencia"
+              placeholder={String(t("chatMedExample"))}
               defaultValue={patient?.info?.medications ?? ""}
             />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <label className="text-xs text-gray-600">Alergias</label>
+            <label className="text-xs text-gray-600">{String(t("chatAllergies"))}</label>
             <Textarea
-              placeholder="Medicamentos o alimentos a los que eres alérgico/a"
+              placeholder={String(t("chatAllergiesExample"))}
               defaultValue={patient?.info?.allergies ?? ""}
             />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <label className="text-xs text-gray-600">Sueño y estrés</label>
+            <label className="text-xs text-gray-600">{String(t("chatSleepStress"))}</label>
             <Textarea
-              placeholder="Hábitos de sueño y niveles de estrés"
+              placeholder={String(t("chatSleepExample"))}
               defaultValue={
-                patient?.info?.lifestyle?.sleepHabits || patient?.info?.lifestyle?.stressLevels
-                  ? `${patient?.info?.lifestyle?.sleepHabits || ""} | ${
-                      patient?.info?.lifestyle?.stressLevels || ""
-                    }`
-                  : ""
+                patient?.info?.lifestyle?.sleepHabits && patient?.info?.lifestyle?.stressLevels
+                  ? `${patient.info.lifestyle.sleepHabits}; ${patient.info.lifestyle.stressLevels}`
+                  : patient?.info?.lifestyle?.sleepHabits ||
+                    patient?.info?.lifestyle?.stressLevels ||
+                    ""
               }
             />
           </div>
         </div>
         <DrawerFooter>
           <DrawerClose asChild>
-            <Button>Cerrar</Button>
+            <Button variant="outline">{String(t("chatClose"))}</Button>
           </DrawerClose>
         </DrawerFooter>
       </DrawerContent>

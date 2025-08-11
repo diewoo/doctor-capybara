@@ -98,6 +98,40 @@ export const translations = {
       },
     } as ChatExample,
 
+    // Chat Interface
+    chatWelcome: "Bienvenido a tu asistente con el doctor capybara",
+    chatWelcomeDesc:
+      "Estoy aquí para ayudarte con tus consultas médicas. ¿En qué puedo asistirte hoy?",
+    chatWriteMessage: "Escribe tu mensaje abajo o usa las sugerencias para comenzar",
+    chatYourConsultation: "Tu consulta",
+    chatDoctorTyping: "Doctor Capybara está escribiendo…",
+    chatReadyToHelp: "Listo para ayudarte",
+    chatSuggestedResponses: "SUGERENCIAS DE RESPUESTA",
+    chatYourProfile: "Tu perfil",
+    chatEditProfile: "Edita los datos que quieras compartir para personalizar las recomendaciones.",
+    chatAge: "Edad",
+    chatGender: "Género",
+    chatMedications: "Medicaciones",
+    chatAllergies: "Alergias",
+    chatSleepStress: "Sueño y estrés",
+    chatAgeExample: "Ej. 31",
+    chatGenderExample: "Ej. femenino/masculino/no binario",
+    chatMedExample: "Nombre / dosis / frecuencia",
+    chatAllergiesExample: "Medicamentos o alimentos a los que eres alérgico/a",
+    chatSleepExample: "Hábitos de sueño y niveles de estrés",
+    chatClose: "Cerrar",
+
+    // Contextual Prompts
+    promptAgeSymptom: "Tengo [edad] años y me siento [síntoma], ¿qué me recomiendas?",
+    promptSleep: "No duermo bien, ¿qué puedo hacer en casa?",
+    promptMedication: "Estoy tomando [nombre/dosis/frecuencia], ¿qué debo tener en cuenta?",
+    promptGoals: "Mis objetivos son [mejorar sueño/energía], ¿por dónde empiezo?",
+    promptStress: "Siento estrés leve, ¿qué técnicas de relajación me sugieres?",
+    promptFamilyHistory: "Hay antecedentes en mi familia, ¿qué señales debería vigilar?",
+    promptHomeRemedies: "¿Qué puedo hacer en casa para sentirme mejor?",
+    promptWhenToDoctor: "¿Cuándo debería acudir a un médico presencial?",
+    promptDuration: "¿Cuánto tiempo suele durar esta molestia?",
+
     // Compliance
     complianceTitle: "Tu Salud y Seguridad Primero",
     importantDisclaimer:
@@ -209,6 +243,40 @@ export const translations = {
         ],
       },
     } as ChatExample,
+
+    // Chat Interface
+    chatWelcome: "Welcome to your doctor capybara assistant",
+    chatWelcomeDesc:
+      "I'm here to help you with your medical consultations. How can I assist you today?",
+    chatWriteMessage: "Write your message below or use the suggestions to start",
+    chatYourConsultation: "Your consultation",
+    chatDoctorTyping: "Doctor Capybara is typing…",
+    chatReadyToHelp: "Ready to help you",
+    chatSuggestedResponses: "SUGGESTED RESPONSES",
+    chatYourProfile: "Your profile",
+    chatEditProfile: "Edit the data you want to share to personalize recommendations.",
+    chatAge: "Age",
+    chatGender: "Gender",
+    chatMedications: "Medications",
+    chatAllergies: "Allergies",
+    chatSleepStress: "Sleep and Stress",
+    chatAgeExample: "Ex. 31",
+    chatGenderExample: "Ex. female/male/non-binary",
+    chatMedExample: "Name / dose / frequency",
+    chatAllergiesExample: "Medications or foods you are allergic to",
+    chatSleepExample: "Sleep habits and stress levels",
+    chatClose: "Close",
+
+    // Contextual Prompts
+    promptAgeSymptom: "I am [age] years old and I feel [symptom], what do you recommend?",
+    promptSleep: "I don't sleep well, what can I do at home?",
+    promptMedication: "I am taking [name/dose/frequency], what should I keep in mind?",
+    promptGoals: "My goals are [better sleep/energy], where do I start?",
+    promptStress: "I feel mild stress, what relaxation techniques do you suggest?",
+    promptFamilyHistory: "There is a family history, what signs should I watch?",
+    promptHomeRemedies: "What can I do at home to feel better?",
+    promptWhenToDoctor: "When should I visit a doctor in person?",
+    promptDuration: "How long does this symptom usually last?",
 
     // Compliance
     complianceTitle: "Your Health & Safety First",

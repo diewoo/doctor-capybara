@@ -5,6 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
 import { Copy, Check, ArrowDown, Pencil } from "lucide-react";
 import TypewriterEffect from "./TypewriterEffect";
 import { Button } from "../ui/button";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ChatV2Props {
   messages: ChatMessage[];
@@ -18,6 +19,7 @@ interface ChatV2Props {
   onSaveEditLast?: (content: string) => void;
   onCancelEditLast?: () => void;
   isBusy?: boolean;
+  patient?: any; // Para acceder al idioma preferido
 }
 
 export const ChatV2: React.FC<ChatV2Props> = ({
@@ -40,6 +42,7 @@ export const ChatV2: React.FC<ChatV2Props> = ({
   const lastScrollTop = useRef(0);
   const [editDraft, setEditDraft] = useState("");
   const editTextAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const el = editTextAreaRef.current;
@@ -385,16 +388,12 @@ export const ChatV2: React.FC<ChatV2Props> = ({
               <span className="text-4xl">🦫</span>
             </div>
             <div className="text-center space-y-2">
-              <h3 className="text-xl font-semibold text-gray-900">
-                Bienvenido a tu asistente con el doctor capybara
-              </h3>
-              <p className="text-base text-gray-500 max-w-md">
-                Estoy aquí para ayudarte con tus consultas médicas. ¿En qué puedo asistirte hoy?
-              </p>
+              <h3 className="text-xl font-semibold text-gray-900">{t("chatWelcome")}</h3>
+              <p className="text-base text-gray-500 max-w-md">{t("chatWelcomeDesc")}</p>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-400 mt-4">
               <ArrowDown className="h-4 w-4 animate-bounce" />
-              <span>Escribe tu mensaje abajo o usa las sugerencias para comenzar</span>
+              <span>{t("chatWriteMessage")}</span>
             </div>
           </div>
         )}
