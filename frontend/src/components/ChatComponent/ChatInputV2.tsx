@@ -66,7 +66,7 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
     <form
       onSubmit={handleSubmit}
       className={cn(
-        "relative flex items-end gap-2 border-t bg-white/80 backdrop-blur-sm shadow-[0_-2px_4px_-1px_rgba(0,0,0,0.03)]",
+        "relative flex items-end gap-2 bg-white/80 backdrop-blur-sm shadow-[0_-1px_3px_-1px_rgba(0,0,0,0.05)]",
         isMobile ? "p-2" : "p-4" // Menos padding en mobile
       )}
     >

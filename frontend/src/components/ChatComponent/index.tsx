@@ -244,7 +244,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
       </div>
 
       {/* Input y sugerencias integrados en un solo contenedor */}
-      <div className="border-t bg-white">
+      <div className="bg-white">
         {/* Input principal */}
         <div className="px-4 py-2">
           <ChatInputV2
