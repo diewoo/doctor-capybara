@@ -14,10 +14,8 @@ export type Retrieved = {
   text: string;
   source: string;
   year: number;
-  category?: string;
-  categoria?: string;
-  symptom?: string;
-  sintoma?: string;
+  domain?: string;
+  topic?: string;
 };
 
 // Función para detectar categoría médica de la consulta
@@ -119,14 +117,12 @@ export async function retrieveContext(
   if (detectedCategory) {
     // Consulta híbrida: filtrado por categoría + similitud vectorial
     sql = `
-      SELECT id, text, source, year, category, categoria, symptom, sintoma
+      SELECT id, text, source, year, domain, topic
       FROM docs
       WHERE language = $1
         AND (
-          LOWER(category) LIKE $2 
-          OR LOWER(categoria) LIKE $2
-          OR LOWER(symptom) LIKE $2
-          OR LOWER(sintoma) LIKE $2
+          LOWER(domain) LIKE $2 
+          OR LOWER(topic) LIKE $2
           OR LOWER(text) LIKE $2
         )
       ORDER BY embedding <#> $3::vector
@@ -140,7 +136,7 @@ export async function retrieveContext(
   } else {
     // Consulta tradicional: solo similitud vectorial
     sql = `
-      SELECT id, text, source, year, category, categoria, symptom, sintoma
+      SELECT id, text, source, year, domain, topic
       FROM docs
       WHERE language = $1
       ORDER BY embedding <#> $2::vector

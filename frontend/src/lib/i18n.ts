@@ -121,6 +121,24 @@ export const translations = {
     chatSleepExample: "Hábitos de sueño y niveles de estrés",
     chatClose: "Cerrar",
 
+    // Chat Actions & Buttons
+    chatCopy: "Copiar",
+    chatEdit: "Editar",
+    chatCancel: "Cancelar",
+    chatSave: "Guardar",
+    chatAskAnything: "Pregunta lo que quieras",
+    chatTypeMessage: "Escribe tu mensaje...",
+    chatSend: "Enviar",
+    chatCharacters: "caracteres",
+
+    // Sidebar & Navigation
+    sidebarHome: "Inicio",
+    headerSubtitle: "Tu asistente médico de confianza",
+
+    // Chat Loading & Errors
+    chatPreparing: "Preparando tu chat…",
+    chatError: "No se pudo iniciar la consulta. Intenta recargar o vuelve más tarde.",
+
     // Contextual Prompts
     promptAgeSymptom: "Tengo [edad] años y me siento [síntoma], ¿qué me recomiendas?",
     promptSleep: "No duermo bien, ¿qué puedo hacer en casa?",
@@ -266,6 +284,24 @@ export const translations = {
     chatAllergiesExample: "Medications or foods you are allergic to",
     chatSleepExample: "Sleep habits and stress levels",
     chatClose: "Close",
+
+    // Chat Actions & Buttons
+    chatCopy: "Copy",
+    chatEdit: "Edit",
+    chatCancel: "Cancel",
+    chatSave: "Save",
+    chatAskAnything: "Ask anything",
+    chatTypeMessage: "Type your message...",
+    chatSend: "Send",
+    chatCharacters: "characters",
+
+    // Sidebar & Navigation
+    sidebarHome: "Home",
+    headerSubtitle: "Your trusted medical assistant",
+
+    // Chat Loading & Errors
+    chatPreparing: "Preparing your chat…",
+    chatError: "Could not start consultation. Try reloading or come back later.",
 
     // Contextual Prompts
     promptAgeSymptom: "I am [age] years old and I feel [symptom], what do you recommend?",

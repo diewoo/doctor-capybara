@@ -1,8 +1,9 @@
-import React, { useRef, useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { SendHorizontal, Loader2, Square } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { SendHorizontal, Square, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ChatInputV2Props {
   onSendMessage: (message: string) => void;
@@ -23,6 +24,7 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
   setValue,
   onStop,
 }) => {
+  const { t } = useLanguage();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -69,7 +71,7 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Pregunta lo que quieras..."
+          placeholder={String(t("chatAskAnything"))}
           className={cn(
             "min-h-[44px] max-h-[200px] pr-12 transition-all duration-200",
             "focus:ring-2 focus:ring-indigo-500/20",
@@ -85,7 +87,7 @@ export const ChatInputV2: React.FC<ChatInputV2Props> = ({
         <div className="absolute right-2 bottom-2 flex items-center gap-2">
           {value.length > 0 && (
             <span className="text-xs text-gray-400 animate-fade-in bg-white/50 px-2 py-0.5 rounded-full">
-              {value.length} caracteres
+              {value.length} {t("chatCharacters")}
             </span>
           )}
         </div>

@@ -229,21 +229,21 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                                     onChange={(e) => setEditDraft(e.target.value)}
                                     disabled={isBusy}
                                   />
-                                  <div className="flex gap-2 justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity pointer-events-auto md:pointer-events-none md:group-hover:pointer-events-auto">
+                                  <div className="flex gap-2 justify-end opacity-100 transition-opacity">
                                     <Button
                                       variant="outline"
                                       size="sm"
                                       onClick={onCancelEditLast}
                                       disabled={isBusy}
                                     >
-                                      Cancelar
+                                      {t("chatCancel")}
                                     </Button>
                                     <Button
                                       size="sm"
                                       onClick={() => onSaveEditLast?.(editDraft)}
                                       disabled={isBusy || !editDraft.trim()}
                                     >
-                                      Guardar
+                                      {t("chatSave")}
                                     </Button>
                                   </div>
                                 </div>
@@ -262,7 +262,7 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                                       onClick={() => handleCopy(message.content, msgId)}
                                       className="h-7 px-2 border-blue-200 text-white/90 bg-blue-700 hover:bg-blue-700/90"
                                     >
-                                      <Copy className="h-3.5 w-3.5 mr-1" /> Copiar
+                                      <Copy className="h-3.5 w-3.5 mr-1" /> {t("chatCopy")}
                                     </Button>
                                     {isLastUserMessage && (
                                       <Button
@@ -275,7 +275,7 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                                         disabled={isBusy}
                                         className="h-7 px-2 border-blue-200 text-white/90 bg-blue-700 hover:bg-blue-700/90"
                                       >
-                                        <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                                        <Pencil className="h-3.5 w-3.5 mr-1" /> {t("chatEdit")}
                                       </Button>
                                     )}
                                   </div>
@@ -303,7 +303,7 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                                 ) : (
                                   <Copy className="h-3.5 w-3.5 mr-1" />
                                 )}
-                                Copiar
+                                {t("chatCopy")}
                               </Button>
                             </div>
                           )}

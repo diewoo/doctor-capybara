@@ -12,6 +12,8 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { useLanguage } from "@/hooks/use-language";
+import { translations } from "@/lib/i18n";
 
 // This is sample data.
 const data = {
@@ -21,7 +23,7 @@ const data = {
       url: "/",
       items: [
         {
-          title: "Inicio",
+          title: "sidebarHome" as keyof typeof translations.es, // Clave de traducción
           url: "/",
         },
       ],
@@ -30,6 +32,8 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { t } = useLanguage();
+
   return (
     <Sidebar {...props}>
       <SidebarHeader>
@@ -45,7 +49,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 {item.items.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
-                      <Link to={item.url}>{item.title}</Link>
+                      <Link to={item.url}>{t(item.title)}</Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}

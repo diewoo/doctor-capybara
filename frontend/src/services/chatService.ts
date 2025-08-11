@@ -20,11 +20,14 @@ export interface Patient {
 
 export const chatService = {
   // Process new patient information
-  processPatientInfo: async (patientInfo: any) => {
-    console.log("Sending patientInfo:", patientInfo);
-    console.log("Request payload:", { patientInfo });
+  processPatientInfo: async (patientInfo: any, language?: string) => {
+    console.log("Sending patientInfo:", patientInfo, "Language:", language);
+    console.log("Request payload:", { patientInfo, language });
     try {
-      const response = await axios.post(`${API_URL}/api/gemini/patient`, { patientInfo });
+      const response = await axios.post(`${API_URL}/api/gemini/patient`, {
+        patientInfo,
+        language,
+      });
       return response.data;
     } catch (error: any) {
       console.error("Error in processPatientInfo:", error);

@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { rootRoute } from "./__root";
 import { Heart } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
 
 export const dashboardLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -11,6 +12,8 @@ export const dashboardLayoutRoute = createRoute({
 });
 
 function LayoutComponent() {
+  const { t } = useLanguage();
+
   return (
     <>
       <SidebarProvider>
@@ -27,7 +30,7 @@ function LayoutComponent() {
                     Doctor Capybara
                   </h1>
                   <span className="text-xs md:text-sm text-slate-500">
-                    Tu asistente médico de confianza
+                    {String(t("headerSubtitle"))}
                   </span>
                 </div>
               </div>

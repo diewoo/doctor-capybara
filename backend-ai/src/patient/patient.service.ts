@@ -164,8 +164,10 @@ export class PatientService {
   async processPatientInfo(
     createPatientDto: CreatePatientDto,
   ): Promise<Patient> {
-    console.log('Processing patient info:', createPatientDto);
-    const rawInfo: unknown = createPatientDto.patientInfo as unknown;
+    console.log('🔍 processPatientInfo called with:', createPatientDto);
+    console.log('🌍 Language received:', createPatientDto.language);
+
+    const rawInfo = createPatientDto.patientInfo;
     console.log('Raw info:', rawInfo, 'Type:', typeof rawInfo);
 
     if (!this.isPatientInfoInput(rawInfo)) {
@@ -218,10 +220,10 @@ export class PatientService {
         }
       } catch {
         // Fallback seguro si el modelo no devolvió JSON válido
+        const userLanguage = createPatientDto.language || 'Español'; // Default to Spanish
         response = {
-          title: 'Consulta inicial',
-          htmlDescription:
-            '<div><p><strong>Hola</strong> 👋 Soy tu asistente de autocuidado. Para orientarte mejor, te haré algunas preguntas breves y luego te compartiré consejos seguros.</p><div style="margin:10px" /><p>Si presentas síntomas intensos o repentinos, por favor acude a un médico presencial.</p></div>',
+          title: this.generateInitialTitle(userLanguage),
+          htmlDescription: this.generateWelcomeMessage(userLanguage),
         };
       }
 
@@ -262,10 +264,10 @@ export class PatientService {
         ) {
           console.log('Gemini API quota exceeded, using fallback response');
           // Use fallback response when Gemini API is not available
+          const userLanguage = createPatientDto.language || 'Español';
           const fallbackResponse: PatientAnalysisResponse = {
-            title: 'Consulta inicial',
-            htmlDescription:
-              '<div><p><strong>Hola</strong> 👋 Soy tu asistente de autocuidado. Para orientarte mejor, te haré algunas preguntas breves y luego te compartiré consejos seguros.</p><div style="margin:10px" /><p>Si presentas síntomas intensos o repentinos, por favor acude a un médico presencial.</p></div>',
+            title: this.generateInitialTitle(userLanguage),
+            htmlDescription: this.generateWelcomeMessage(userLanguage),
           };
 
           const nowIso = new Date().toISOString();
@@ -1142,6 +1144,21 @@ export class PatientService {
     }
 
     return spanishCount >= englishCount ? 'Español' : 'English';
+  }
+
+  private generateWelcomeMessage(language: 'Español' | 'English'): string {
+    if (language === 'English') {
+      return '<div><p><strong>Hello</strong> 👋 I\'m your self-care assistant. To better guide you, I\'ll ask you some brief questions and then share safe advice.</p><div style="margin:10px" /><p>If you experience intense or sudden symptoms, please see a doctor in person.</p></div>';
+    }
+
+    return '<div><p><strong>Hola</strong> 👋 Soy tu asistente de autocuidado. Para orientarte mejor, te haré algunas preguntas breves y luego te compartiré consejos seguros.</p><div style="margin:10px" /><p>Si presentas síntomas intensos o repentinos, por favor acude a un médico presencial.</p></div>';
+  }
+
+  private generateInitialTitle(language: 'Español' | 'English'): string {
+    if (language === 'English') {
+      return 'Initial Consultation';
+    }
+    return 'Consulta Inicial';
   }
 
   private logPromptDetails(

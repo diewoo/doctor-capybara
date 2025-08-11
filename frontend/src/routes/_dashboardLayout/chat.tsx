@@ -7,6 +7,7 @@ import { chatService } from "@/services/chatService";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { dashboardLayoutRoute } from "../_dashboardLayout";
+import { useLanguage } from "@/hooks/use-language";
 
 const queryClient = new QueryClient();
 
@@ -17,6 +18,7 @@ export const chatRoute = createRoute({
 });
 
 function ChatPage() {
+  const { language, t } = useLanguage();
   const [patientId, setPatientId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,13 +31,16 @@ function ChatPage() {
       try {
         setIsProcessing(true);
         setError(null);
-        const response = await chatService.processPatientInfo("");
+        const response = await chatService.processPatientInfo(
+          "",
+          language === "en" ? "English" : "Español"
+        );
         if (!mounted) return;
         setPatientId(response.id);
         setPatientDescription(response.htmlDescription);
       } catch (err) {
         if (!mounted) return;
-        setError("No se pudo iniciar la consulta. Intenta recargar o vuelve más tarde.");
+        setError(String(t("chatError")));
         console.error(err);
       } finally {
         if (mounted) setIsProcessing(false);
@@ -45,7 +50,7 @@ function ChatPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [language]);
 
   if (!patientId || isProcessing) {
     return (
@@ -53,7 +58,7 @@ function ChatPage() {
         <Card className="w-full max-w-md">
           <CardContent className="py-12 flex items-center justify-center gap-2">
             <Loader2 className="h-5 w-5 animate-spin" />
-            <span>Preparando tu chat…</span>
+            <span>{t("chatPreparing")}</span>
           </CardContent>
         </Card>
       </div>
