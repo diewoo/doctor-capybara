@@ -10,16 +10,16 @@ import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { ChatMessageDto } from './dto/chat-message.dto';
 import {
-  getPatientTitleDescPrompt,
-  getPatientChatPrompt,
-  PatientAnalysisResponse,
-} from '../utils/prompts';
-import {
   processAndCleanPatientInfo,
   patientProfileToNarrative,
   buildMissingProfileQuestions,
 } from '../utils/text-processor';
-import { retrieveContext } from '../rag/retrieve';
+import {
+  getPatientChatPrompt,
+  getPatientTitleDescPrompt,
+  PatientAnalysisResponse,
+} from '../utils/prompts';
+import { SimpleSemanticSearch } from '../utils/semantic-search';
 
 // Constants for rate limiting and validation
 const MAX_MESSAGE_LENGTH = 1000;
@@ -29,16 +29,18 @@ const MAX_PATIENT_INFO_LENGTH = 5000;
 @Injectable()
 export class PatientService {
   private patients: Map<string, Patient> = new Map();
-  private genAI: GoogleGenerativeAI;
-  private messageCounts: Map<string, { count: number; timestamp: number }> =
+  private rateLimitMap: Map<string, { count: number; resetTime: number }> =
     new Map();
+  private genAI: GoogleGenerativeAI;
+  private semanticSearch: SimpleSemanticSearch;
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is not set');
+      throw new Error('GEMINI_API_KEY environment variable is required');
     }
     this.genAI = new GoogleGenerativeAI(apiKey);
+    this.semanticSearch = new SimpleSemanticSearch();
   }
 
   private isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -141,12 +143,12 @@ export class PatientService {
   private checkRateLimit(patientId: string): void {
     const now = Date.now();
     const minuteAgo = now - 60000;
-    const patientRate = this.messageCounts.get(patientId);
+    const patientRate = this.rateLimitMap.get(patientId);
 
     if (patientRate) {
-      if (patientRate.timestamp < minuteAgo) {
+      if (patientRate.resetTime < minuteAgo) {
         // Reset if more than a minute has passed
-        this.messageCounts.set(patientId, { count: 1, timestamp: now });
+        this.rateLimitMap.set(patientId, { count: 1, resetTime: now });
       } else if (patientRate.count >= MAX_MESSAGES_PER_MINUTE) {
         throw new HttpException(
           'Rate limit exceeded. Please wait before sending more messages.',
@@ -154,10 +156,10 @@ export class PatientService {
         );
       } else {
         patientRate.count++;
-        this.messageCounts.set(patientId, patientRate);
+        this.rateLimitMap.set(patientId, patientRate);
       }
     } else {
-      this.messageCounts.set(patientId, { count: 1, timestamp: now });
+      this.rateLimitMap.set(patientId, { count: 1, resetTime: now });
     }
   }
 
@@ -415,9 +417,10 @@ export class PatientService {
       let retrievedDocs: any[] = []; // Default empty array
       let ragContext = '';
       try {
-        retrievedDocs = await retrieveContext(
+        // Usar búsqueda semántica en lugar de retrieveContext hardcodeado
+        retrievedDocs = await this.semanticSearch.hybridSearch(
           chatMessageDto.message,
-          detectedLanguage, // Usar el idioma del mensaje actual
+          detectedLanguage,
           5,
         );
 
@@ -628,7 +631,7 @@ export class PatientService {
       let retrievedDocs: any[] = []; // Default empty array
 
       try {
-        retrievedDocs = await retrieveContext(
+        retrievedDocs = await this.semanticSearch.hybridSearch(
           chatMessageDto.message,
           detectedLanguage,
           6,
