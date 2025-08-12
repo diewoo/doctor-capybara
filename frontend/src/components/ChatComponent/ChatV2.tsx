@@ -99,7 +99,18 @@ export const ChatV2: React.FC<ChatV2Props> = ({
 
   const handleCopy = useCallback(async (content: string, id: string) => {
     try {
-      await navigator.clipboard.writeText(content);
+      // Extraer texto limpio del HTML si es necesario
+      let textToCopy = content;
+
+      // Si el contenido parece tener HTML, extraer solo el texto
+      if (content.includes("<") && content.includes(">")) {
+        // Crear un elemento temporal para extraer el texto
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = content;
+        textToCopy = tempDiv.textContent || tempDiv.innerText || content;
+      }
+
+      await navigator.clipboard.writeText(textToCopy);
       setCopiedMessageId(id);
       setTimeout(() => setCopiedMessageId(null), 2000);
     } catch (err) {
