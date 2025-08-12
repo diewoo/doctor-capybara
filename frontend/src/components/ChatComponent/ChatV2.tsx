@@ -140,7 +140,7 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                   <div key={msgId} className="group" data-message data-message-id={msgId}>
                     <div className="flex gap-3 w-full">
                       {!isUser && (
-                        <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
+                        <Avatar className="w-10 h-10 flex-shrink-0 mt-1">
                           <AvatarImage src="/doctor_capybara.jpeg" />
                           <AvatarFallback className="bg-indigo-600 text-white text-xs">
                             🦫
@@ -269,7 +269,7 @@ export const ChatV2: React.FC<ChatV2Props> = ({
 
             {streamingHtml !== null && (
               <div className="flex gap-3 w-full" data-message data-message-id="streaming">
-                <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
+                <Avatar className="w-10 h-10 flex-shrink-0 mt-1">
                   <AvatarImage src="/doctor_capybara.jpeg" />
                   <AvatarFallback className="bg-indigo-600 text-white text-xs">🦫</AvatarFallback>
                 </Avatar>
