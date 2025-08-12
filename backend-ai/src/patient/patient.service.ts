@@ -20,6 +20,7 @@ import {
   PatientAnalysisResponse,
 } from '../utils/prompts';
 import { SimpleSemanticSearch } from '../utils/semantic-search';
+import { retrieveContextSmart } from '../rag/retrieve-advanced';
 
 // Constants for rate limiting and validation
 const MAX_MESSAGE_LENGTH = 1000;
@@ -417,12 +418,8 @@ export class PatientService {
       let retrievedDocs: any[] = []; // Default empty array
       let ragContext = '';
       try {
-        // Usar búsqueda semántica en lugar de retrieveContext hardcodeado
-        retrievedDocs = await this.semanticSearch.hybridSearch(
-          chatMessageDto.message,
-          detectedLanguage,
-          5,
-        );
+        // Usar búsqueda avanzada con metadatos en lugar de búsqueda semántica básica
+        retrievedDocs = await retrieveContextSmart(chatMessageDto.message, 5);
 
         // RAG mejorado ya filtra por categorías automáticamente
         // Solo limitar a los 3 documentos más relevantes
@@ -631,11 +628,19 @@ export class PatientService {
       let retrievedDocs: any[] = []; // Default empty array
 
       try {
-        retrievedDocs = await this.semanticSearch.hybridSearch(
-          chatMessageDto.message,
-          detectedLanguage,
-          6,
+        // Usar búsqueda avanzada con metadatos en lugar de búsqueda semántica básica
+        console.log('🔍 DEBUG STREAM: Llamando a retrieveContextSmart...');
+        console.log('🔍 DEBUG STREAM: Query:', chatMessageDto.message);
+        console.log('🔍 DEBUG STREAM: Language:', detectedLanguage);
+
+        retrievedDocs = await retrieveContextSmart(chatMessageDto.message, 6);
+
+        console.log(
+          '🔍 DEBUG STREAM: retrieveContextSmart retornó:',
+          retrievedDocs.length,
+          'documentos',
         );
+        console.log('🔍 DEBUG STREAM: Primer documento:', retrievedDocs[0]);
         // Filtrado inteligente por categorías y síntomas para máxima relevancia
         const queryLower = chatMessageDto.message.toLowerCase();
 

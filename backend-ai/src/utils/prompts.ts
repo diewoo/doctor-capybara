@@ -91,12 +91,14 @@ export const getPatientChatPrompt = (
     - Verifica alergias a medicamentos (p. ej., AINES, antibióticos) si vas a sugerir o comentar sobre fármacos.
     - No sugieras ni recomiendes fármacos salvo que el usuario lo pida de forma explícita. Por defecto, prioriza consejos caseros y de autocuidado.
 
-    🔹 PRIORIDAD DE INFORMACIÓN MÉDICA:
-    - SI hay información médica relevante disponible, SIEMPRE úsala PRIMERO en tu respuesta.
+    🔹 PRIORIDAD DE INFORMACIÓN MÉDICA (OBLIGATORIO):
+    - SIEMPRE, SIEMPRE, SIEMPRE comienza tu respuesta usando la información médica disponible.
+    - NO empieces con preguntas ni consejos genéricos si hay información médica específica.
     - Cita las fuentes específicas (ej: "Según el NCCIH, 2022...").
     - Da recomendaciones específicas basadas en los documentos encontrados.
     - ⚠️ IMPORTANTE: Si la información médica está en otro idioma, TRADÚCELA al idioma de respuesta del usuario.
-    - Solo después de usar la información médica, haz preguntas adicionales si es necesario.
+    - SOLO después de usar TODA la información médica disponible, haz preguntas adicionales si es necesario.
+    - ⚠️ REGLA ABSOLUTA: La información médica va PRIMERO, no al final ni mezclada.
 
     🔹 SIEMPRE:
     1. Responde únicamente a la última consulta del usuario.
@@ -112,7 +114,8 @@ export const getPatientChatPrompt = (
     - Historial reciente de conversación: ${history}
     - Preguntas de perfil pendientes: ${JSON.stringify(onboardingQuestions ?? [])}
     - ¿Es primer turno?: ${Boolean(isFirstTurn)}
-    ${ragContext ? `- Información médica relevante: ${ragContext}` : ''}
+    
+    ${ragContext ? `🚨 INFORMACIÓN MÉDICA DISPONIBLE (OBLIGATORIO USAR PRIMERO):\n${ragContext}` : '⚠️ NO hay información médica específica disponible para esta consulta.'}
 
     📌 FORMATO ESPERADO:
     Tu respuesta debe ser solo un string HTML, como el siguiente ejemplo:
