@@ -130,6 +130,7 @@ export const translations = {
     chatTypeMessage: "Escribe tu mensaje...",
     chatSend: "Enviar",
     chatCharacters: "caracteres",
+    generatingResponse: "Generando respuesta...",
 
     // Suggestions Header
     suggestionsShow: "Mostrar sugerencias",
@@ -230,6 +231,7 @@ export const translations = {
     startChat: "Start Chat",
     educationalOnly:
       "Educational suggestions only. Consult your healthcare provider for persistent issues.",
+    generatingResponse: "Generating response...",
 
     // Chat Examples
     chatExample1: {
