@@ -110,74 +110,160 @@ export const patientProfileToNarrative = (input: unknown): string => {
   }
 };
 
-export const buildMissingProfileQuestions = (input: unknown): string[] => {
+export const buildMissingProfileQuestions = (
+  input: unknown,
+  language: 'Español' | 'English' = 'Español',
+): string[] => {
   const questions: string[] = [];
   const isBlank = (v: unknown) =>
     v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
 
   if (!input || typeof input !== 'object') {
     // No structured profile: ask high-level onboarding questions
-    return [
-      '¿Podrías contarme tu edad y con qué género te identificas?',
-      '¿Tienes alguna condición de salud actual o antecedentes médicos importantes?',
-      '¿Cómo describirías tu estilo de vida en cuanto a alimentación, actividad física, sueño y estrés?',
-      '¿Tomas medicamentos o suplementos actualmente?',
-      '¿Hay antecedentes familiares relevantes de salud?',
-      '¿Qué objetivos personales o preferencias tienes respecto a tu bienestar?',
-    ];
+    if (language === 'English') {
+      return [
+        'Could you tell me your age and what gender you identify with?',
+        'Do you have any current health conditions or important medical history?',
+        'How would you describe your lifestyle in terms of diet, physical activity, sleep and stress?',
+        'Are you currently taking any medications or supplements?',
+        'Are there any relevant family health history?',
+        'What personal goals or preferences do you have regarding your wellness?',
+      ];
+    } else {
+      return [
+        '¿Podrías contarme tu edad y con qué género te identificas?',
+        '¿Tienes alguna condición de salud actual o antecedentes médicos importantes?',
+        '¿Cómo describirías tu estilo de vida en cuanto a alimentación, actividad física, sueño y estrés?',
+        '¿Tomas medicamentos o suplementos actualmente?',
+        '¿Hay antecedentes familiares relevantes de salud?',
+        '¿Qué objetivos personales o preferencias tienes respecto a tu bienestar?',
+      ];
+    }
   }
 
   const profile = input as Partial<PatientProfile>;
 
-  if (isBlank(profile.age)) questions.push('¿Cuál es tu edad?');
-  if (isBlank(profile.gender)) {
-    questions.push('¿Con qué género te identificas?');
-  }
-  if (isBlank(profile.lifeStage))
+  if (isBlank(profile.age)) {
     questions.push(
-      '¿En qué etapa de vida te encuentras (por ejemplo, adultez, embarazo, etc.)?',
+      language === 'English' ? 'What is your age?' : '¿Cuál es tu edad?',
     );
-  if (isBlank(profile.medicalHistory))
-    questions.push('¿Tienes antecedentes médicos que debamos tener en cuenta?');
-  if (isBlank(profile.currentHealthConditions))
-    questions.push('¿Cuentas con condiciones de salud actuales relevantes?');
-  if (isBlank(profile.geneticFamilyHistory))
-    questions.push('¿Hay antecedentes familiares de importancia en tu salud?');
+  }
+  if (isBlank(profile.gender)) {
+    questions.push(
+      language === 'English'
+        ? 'What gender do you identify with?'
+        : '¿Con qué género te identificas?',
+    );
+  }
+  if (isBlank(profile.lifeStage)) {
+    questions.push(
+      language === 'English'
+        ? 'What life stage are you in (e.g., adulthood, pregnancy, etc.)?'
+        : '¿En qué etapa de vida te encuentras (por ejemplo, adultez, embarazo, etc.)?',
+    );
+  }
+  if (isBlank(profile.medicalHistory)) {
+    questions.push(
+      language === 'English'
+        ? 'Do you have any medical history we should consider?'
+        : '¿Tienes antecedentes médicos que debamos tener en cuenta?',
+    );
+  }
+  if (isBlank(profile.currentHealthConditions)) {
+    questions.push(
+      language === 'English'
+        ? 'Do you have any current relevant health conditions?'
+        : '¿Cuentas con condiciones de salud actuales relevantes?',
+    );
+  }
+  if (isBlank(profile.geneticFamilyHistory)) {
+    questions.push(
+      language === 'English'
+        ? 'Are there any important family health history?'
+        : '¿Hay antecedentes familiares de importancia en tu salud?',
+    );
+  }
 
   const lifestyle: Partial<NonNullable<PatientProfile['lifestyle']>> =
     profile.lifestyle ?? {};
-  if (isBlank(lifestyle.diet))
-    questions.push('¿Cómo describirías tu alimentación habitual?');
-  if (isBlank(lifestyle.physicalActivity))
-    questions.push('¿Qué nivel de actividad física realizas?');
-  if (isBlank(lifestyle.sleepHabits))
-    questions.push('¿Cómo duermes normalmente (horas y calidad)?');
-  if (isBlank(lifestyle.stressLevels))
-    questions.push('¿Cómo calificarías tus niveles de estrés?');
-  if (isBlank(lifestyle.substanceUse))
-    questions.push('¿Consumes alcohol, tabaco u otras sustancias?');
-
-  if (isBlank(profile.personalGoals))
+  if (isBlank(lifestyle.diet)) {
     questions.push(
-      '¿Qué objetivos personales de bienestar te gustaría alcanzar?',
+      language === 'English'
+        ? 'How would you describe your usual diet?'
+        : '¿Cómo describirías tu alimentación habitual?',
     );
-  if (isBlank(profile.preferences))
-    questions.push(
-      '¿Tienes preferencias o restricciones para tu cuidado o recomendaciones?',
-    );
-  if (isBlank(profile.medications))
-    questions.push('¿Tomas algún medicamento actualmente?');
-  if (isBlank(profile.supplements)) {
-    questions.push('¿Usas suplementos? ¿Cuáles?');
   }
-  if (isBlank(profile.environmentalFactors))
+  if (isBlank(lifestyle.physicalActivity)) {
     questions.push(
-      '¿Hay factores ambientales de tu entorno (trabajo, exposición) a considerar?',
+      language === 'English'
+        ? 'What level of physical activity do you do?'
+        : '¿Qué nivel de actividad física realizas?',
     );
-  if (isBlank(profile.socialFactors))
+  }
+  if (isBlank(lifestyle.sleepHabits)) {
     questions.push(
-      '¿Cómo es tu entorno social y apoyo (familia, trabajo, amigos)?',
+      language === 'English'
+        ? 'How do you normally sleep (hours and quality)?'
+        : '¿Cómo duermes normalmente (horas y calidad)?',
     );
+  }
+  if (isBlank(lifestyle.stressLevels)) {
+    questions.push(
+      language === 'English'
+        ? 'How would you rate your stress levels?'
+        : '¿Cómo calificarías tus niveles de estrés?',
+    );
+  }
+  if (isBlank(lifestyle.substanceUse)) {
+    questions.push(
+      language === 'English'
+        ? 'Do you consume alcohol, tobacco or other substances?'
+        : '¿Consumes alcohol, tabaco u otras sustancias?',
+    );
+  }
+
+  if (isBlank(profile.personalGoals)) {
+    questions.push(
+      language === 'English'
+        ? 'What personal wellness goals would you like to achieve?'
+        : '¿Qué objetivos personales de bienestar te gustaría alcanzar?',
+    );
+  }
+  if (isBlank(profile.preferences)) {
+    questions.push(
+      language === 'English'
+        ? 'Do you have any preferences or restrictions for your care or recommendations?'
+        : '¿Tienes preferencias o restricciones para tu cuidado o recomendaciones?',
+    );
+  }
+  if (isBlank(profile.medications)) {
+    questions.push(
+      language === 'English'
+        ? 'Are you currently taking any medications?'
+        : '¿Tomas algún medicamento actualmente?',
+    );
+  }
+  if (isBlank(profile.supplements)) {
+    questions.push(
+      language === 'English'
+        ? 'Do you use supplements? Which ones?'
+        : '¿Usas suplementos? ¿Cuáles?',
+    );
+  }
+  if (isBlank(profile.environmentalFactors)) {
+    questions.push(
+      language === 'English'
+        ? 'Are there any environmental factors in your environment (work, exposure) to consider?'
+        : '¿Hay factores ambientales de tu entorno (trabajo, exposición) a considerar?',
+    );
+  }
+  if (isBlank(profile.socialFactors)) {
+    questions.push(
+      language === 'English'
+        ? 'How is your social environment and support (family, work, friends)?'
+        : '¿Cómo es tu entorno social y apoyo (familia, trabajo, amigos)?',
+    );
+  }
 
   return questions;
 };

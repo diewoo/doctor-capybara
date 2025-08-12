@@ -399,14 +399,17 @@ export class PatientService {
         // Si falla la extracción, continuamos sin bloquear el chat
       }
 
+      // Detectar idioma del mensaje actual del usuario
+      const detectedLanguage = await this.detectLanguageWithAI(
+        chatMessageDto.message,
+      );
+
       const onboardingQuestions = buildMissingProfileQuestions(
         typeof patient.info === 'object'
           ? (patient.info as Record<string, unknown>)
           : undefined,
+        detectedLanguage, // ← Pasar el idioma detectado
       );
-
-      // Detectar idioma del mensaje actual del usuario
-      const detectedLanguage = this.detectLanguage(chatMessageDto.message);
 
       // Obtener contexto RAG
       let retrievedDocs: any[] = []; // Default empty array
@@ -422,6 +425,7 @@ export class PatientService {
         // Solo limitar a los 3 documentos más relevantes
         retrievedDocs = retrievedDocs.slice(0, 3);
 
+        // SOLO usar contexto RAG si encontramos documentos en el idioma del usuario
         if (retrievedDocs.length > 0) {
           ragContext =
             '\n\n📚 INFORMACIÓN MÉDICA RELEVANTE:\n' +
@@ -430,13 +434,24 @@ export class PatientService {
                 (doc) => `• ${doc.text} (Fuente: ${doc.source}, ${doc.year})`,
               )
               .join('\n');
+
+          console.log(
+            `✅ RAG: Usando ${retrievedDocs.length} documentos en ${detectedLanguage}`,
+          );
+        } else {
+          console.log(
+            `⚠️ RAG: No se encontraron documentos en ${detectedLanguage}, continuando sin contexto`,
+          );
+          ragContext = ''; // Asegurar que esté vacío
         }
       } catch (error) {
         console.error('Error retrieving RAG context:', error);
         // Continuar sin RAG si falla
+        ragContext = '';
       }
 
       const prompt = getPatientChatPrompt(
+        detectedLanguage,
         patient.title,
         processedInfo,
         chatMessageDto.message,
@@ -444,7 +459,6 @@ export class PatientService {
         onboardingQuestions,
         patient.chat.length === 0,
         ragContext, // Pasar el contexto RAG
-        detectedLanguage,
       );
 
       // Log prompt details for validation
@@ -597,14 +611,17 @@ export class PatientService {
         console.error('Profile extraction failed (non-fatal):', error);
       }
 
+      // Detectar idioma del mensaje actual del usuario
+      const detectedLanguage = await this.detectLanguageWithAI(
+        chatMessageDto.message,
+      );
+
       const onboardingQuestions = buildMissingProfileQuestions(
         typeof patient.info === 'object'
           ? (patient.info as Record<string, unknown>)
           : undefined,
+        detectedLanguage, // ← Pasar el idioma detectado
       );
-
-      // Detectar idioma del mensaje actual del usuario
-      const detectedLanguage = this.detectLanguage(chatMessageDto.message);
 
       // Obtener contexto RAG basado en la consulta del usuario
       let ragContext = '';
@@ -682,6 +699,7 @@ export class PatientService {
         // Limitar a los 3 documentos más relevantes
         retrievedDocs = retrievedDocs.slice(0, 3);
 
+        // SOLO usar contexto RAG si encontramos documentos en el idioma del usuario
         if (retrievedDocs.length > 0) {
           ragContext =
             '\n\n📚 INFORMACIÓN MÉDICA RELEVANTE:\n' +
@@ -690,12 +708,22 @@ export class PatientService {
                 (doc) => `• ${doc.text} (Fuente: ${doc.source}, ${doc.year})`,
               )
               .join('\n');
+
+          console.log(
+            `✅ RAG Stream: Usando ${retrievedDocs.length} documentos en ${detectedLanguage}`,
+          );
+        } else {
+          console.log(
+            `⚠️ RAG Stream: No se encontraron documentos en ${detectedLanguage}, continuando sin contexto`,
+          );
+          ragContext = ''; // Asegurar que esté vacío
         }
       } catch (error) {
         console.error('Error retrieving RAG context:', error);
       }
 
       const prompt = getPatientChatPrompt(
+        detectedLanguage,
         patient.title,
         processedInfo,
         chatMessageDto.message,
@@ -703,7 +731,6 @@ export class PatientService {
         onboardingQuestions,
         patient.chat.length === 0,
         ragContext,
-        detectedLanguage,
       );
 
       // Log prompt details for validation
@@ -840,19 +867,28 @@ export class PatientService {
         ? patient.info
         : patientProfileToNarrative(patient.info);
     const processedInfo = processAndCleanPatientInfo(baseInfoNarrative);
+
+    // Detectar idioma del mensaje editado
+    const detectedLanguage = await this.detectLanguageWithAI(
+      chatMessageDto.message,
+    );
+
     const onboardingQuestions = buildMissingProfileQuestions(
       typeof patient.info === 'object'
         ? (patient.info as Record<string, unknown>)
         : undefined,
+      detectedLanguage, // ← Pasar el idioma detectado
     );
 
     const prompt = getPatientChatPrompt(
+      detectedLanguage,
       patient.title,
       processedInfo,
       chatMessageDto.message,
       historyBefore,
       onboardingQuestions,
       false,
+      undefined, // ragContext
     );
 
     const streamResult = await model.generateContentStream(prompt);
@@ -933,9 +969,69 @@ export class PatientService {
     return patient.chat;
   }
 
-  private detectLanguage(text: string): 'Español' | 'English' {
-    // Simple language detection based on common words
-    const spanishWords = [
+  private async detectLanguageWithAI(
+    text: string,
+  ): Promise<'Español' | 'English'> {
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash',
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 10,
+          responseMimeType: 'application/json',
+        },
+      });
+
+      const prompt = `
+      You are a language detection expert. Analyze this text and determine if it's Spanish or English.
+
+      Text: "${text}"
+
+      CRITICAL RULES:
+      - If the text contains ANY English words (the, and, I, you, etc.) → respond: {"language": "English"}
+      - If the text contains ANY Spanish words (el, la, de, que, etc.) → respond: {"language": "Español"}
+      - If the text is clearly English (even with simple words) → respond: {"language": "English"}
+      - If the text is clearly Spanish → respond: {"language": "Español"}
+      - Be VERY strict about English detection
+      - Only respond with the JSON, nothing else
+
+      Examples:
+      - "I sleep well" → {"language": "English"}
+      - "Duermo bien" → {"language": "Español"}
+      - "Exactly, and I want to keep it that way" → {"language": "English"}
+      - "I don't sleep well" → {"language": "English"}
+      - "No duermo bien" → {"language": "Español"}
+      `;
+
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text();
+
+      try {
+        const parsed = JSON.parse(responseText);
+        if (parsed.language === 'Español' || parsed.language === 'English') {
+          console.log(
+            `🔍 AI detected language: ${parsed.language} for text: "${text}"`,
+          );
+          return parsed.language;
+        }
+      } catch (parseError) {
+        console.error(
+          'Failed to parse AI language detection response:',
+          parseError,
+        );
+      }
+
+      // Fallback simple si la IA falla
+      return this.detectLanguageFallback(text);
+    } catch (error) {
+      console.error('AI language detection failed, using fallback:', error);
+      return this.detectLanguageFallback(text);
+    }
+  }
+
+  private detectLanguageFallback(text: string): 'Español' | 'English' {
+    // Solo palabras muy básicas como respaldo
+    const spanishBasic = [
       'el',
       'la',
       'de',
@@ -946,75 +1042,8 @@ export class PatientService {
       'es',
       'se',
       'no',
-      'te',
-      'lo',
-      'le',
-      'da',
-      'su',
-      'por',
-      'son',
-      'con',
-      'para',
-      'al',
-      'del',
-      'los',
-      'las',
-      'una',
-      'como',
-      'más',
-      'pero',
-      'sus',
-      'me',
-      'hasta',
-      'hay',
-      'donde',
-      'han',
-      'quien',
-      'están',
-      'estado',
-      'desde',
-      'todo',
-      'nos',
-      'durante',
-      'todos',
-      'uno',
-      'les',
-      'ni',
-      'contra',
-      'otros',
-      'ese',
-      'eso',
-      'ante',
-      'ellos',
-      'e',
-      'esto',
-      'mí',
-      'antes',
-      'algunos',
-      'qué',
-      'unos',
-      'yo',
-      'otro',
-      'otras',
-      'otra',
-      'él',
-      'tanto',
-      'esa',
-      'estos',
-      'mucho',
-      'quienes',
-      'nada',
-      'muchos',
-      'cual',
-      'poco',
-      'ella',
-      'estar',
-      'estas',
-      'algunas',
-      'algo',
-      'nosotros',
     ];
-    const englishWords = [
+    const englishBasic = [
       'the',
       'be',
       'to',
@@ -1025,96 +1054,6 @@ export class PatientService {
       'that',
       'have',
       'i',
-      'it',
-      'for',
-      'not',
-      'on',
-      'with',
-      'he',
-      'as',
-      'you',
-      'do',
-      'at',
-      'this',
-      'but',
-      'his',
-      'by',
-      'from',
-      'they',
-      'we',
-      'say',
-      'her',
-      'she',
-      'or',
-      'an',
-      'will',
-      'my',
-      'one',
-      'all',
-      'would',
-      'there',
-      'their',
-      'what',
-      'so',
-      'up',
-      'out',
-      'if',
-      'about',
-      'who',
-      'get',
-      'which',
-      'go',
-      'me',
-      'when',
-      'make',
-      'can',
-      'like',
-      'time',
-      'no',
-      'just',
-      'him',
-      'know',
-      'take',
-      'people',
-      'into',
-      'year',
-      'your',
-      'good',
-      'some',
-      'could',
-      'them',
-      'see',
-      'other',
-      'than',
-      'then',
-      'now',
-      'look',
-      'only',
-      'come',
-      'its',
-      'over',
-      'think',
-      'also',
-      'back',
-      'after',
-      'use',
-      'two',
-      'how',
-      'our',
-      'work',
-      'first',
-      'well',
-      'way',
-      'even',
-      'new',
-      'want',
-      'because',
-      'any',
-      'these',
-      'give',
-      'day',
-      'most',
-      'us',
     ];
 
     const words = text.toLowerCase().split(/\s+/);
@@ -1122,11 +1061,15 @@ export class PatientService {
     let englishCount = 0;
 
     for (const word of words) {
-      if (spanishWords.includes(word)) spanishCount++;
-      if (englishWords.includes(word)) englishCount++;
+      if (spanishBasic.includes(word)) spanishCount++;
+      if (englishBasic.includes(word)) englishCount++;
     }
 
-    return spanishCount >= englishCount ? 'Español' : 'English';
+    const detected = spanishCount >= englishCount ? 'Español' : 'English';
+    console.log(
+      `🔍 Fallback detected language: ${detected} for text: "${text}"`,
+    );
+    return detected;
   }
 
   private generateWelcomeMessage(language: 'Español' | 'English'): string {

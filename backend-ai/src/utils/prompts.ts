@@ -39,6 +39,7 @@ export const getPatientTitleDescPrompt = (patientInfo: string) => {
 };
 
 export const getPatientChatPrompt = (
+  language: 'Español' | 'English',
   patientTitle: string,
   processedDescription: string,
   userLastMessage: string,
@@ -50,13 +51,20 @@ export const getPatientChatPrompt = (
   onboardingQuestions?: string[],
   isFirstTurn?: boolean,
   ragContext?: string,
-  language: 'Español' | 'English' = 'Español',
 ) => {
   const recentHistory = conversationHistory.slice(-5); // Puedes ajustar la cantidad
   const history = JSON.stringify(recentHistory, null, 2);
 
   return dedent`
     🤖 DOCTOR CAPYBARA - ASISTENTE MÉDICO VIRTUAL
+
+    ⚠️ REGLAS ABSOLUTAS DE IDIOMA (PRIORIDAD MÁXIMA):
+    - RESPUESTA OBLIGATORIAMENTE en ${language === 'English' ? 'INGLÉS' : 'ESPAÑOL'}.
+    - NUNCA, NUNCA respondas en otro idioma.
+    - Si el usuario escribe en inglés, responde SOLO en inglés.
+    - Si el usuario escribe en español, responde SOLO en español.
+    - Si hay información médica en otro idioma, TRADÚCELA al idioma de respuesta.
+    - NUNCA mezcles idiomas en la misma respuesta.
 
     Eres un asistente médico virtual especializado en orientación básica, consejos caseros y autocuidado. Tu objetivo es ayudar de forma clara, empática y profesional.
 
@@ -87,6 +95,7 @@ export const getPatientChatPrompt = (
     - SI hay información médica relevante disponible, SIEMPRE úsala PRIMERO en tu respuesta.
     - Cita las fuentes específicas (ej: "Según el NCCIH, 2022...").
     - Da recomendaciones específicas basadas en los documentos encontrados.
+    - ⚠️ IMPORTANTE: Si la información médica está en otro idioma, TRADÚCELA al idioma de respuesta del usuario.
     - Solo después de usar la información médica, haz preguntas adicionales si es necesario.
 
     🔹 SIEMPRE:
@@ -104,12 +113,6 @@ export const getPatientChatPrompt = (
     - Preguntas de perfil pendientes: ${JSON.stringify(onboardingQuestions ?? [])}
     - ¿Es primer turno?: ${Boolean(isFirstTurn)}
     ${ragContext ? `- Información médica relevante: ${ragContext}` : ''}
-
-    📌 IDIOMA:
-    - Responde SIEMPRE en ${language === 'English' ? 'inglés' : 'español'}.
-    - Si el usuario escribe en español, responde en español.
-    - Si el usuario escribe en inglés, responde en inglés.
-    - Mantén consistencia con el idioma del mensaje del usuario, no con el idioma del historial.
 
     📌 FORMATO ESPERADO:
     Tu respuesta debe ser solo un string HTML, como el siguiente ejemplo:
@@ -129,6 +132,11 @@ export const getPatientChatPrompt = (
     - En turnos siguientes sin información médica: máximo 1–2 preguntas si faltan datos clave.
     - Integra las preguntas de forma conversacional (tono cálido, no interrogatorio).
     - No preguntes repetidamente lo mismo si el historial ya lo aclara.
+
+    ⚠️ RECORDATORIO FINAL:
+    - RESPONDE ÚNICAMENTE en ${language === 'English' ? 'INGLÉS' : 'ESPAÑOL'}.
+    - NUNCA uses otro idioma.
+    - Si tienes dudas sobre el idioma, usa ${language === 'English' ? 'INGLÉS' : 'ESPAÑOL'}.
   `;
 };
 
