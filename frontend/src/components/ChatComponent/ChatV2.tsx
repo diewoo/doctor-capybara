@@ -6,6 +6,7 @@ import { Copy, Check, ArrowDown, Pencil } from "lucide-react";
 import TypewriterEffect from "./TypewriterEffect";
 import { Button } from "../ui/button";
 import { useLanguage } from "@/hooks/use-language";
+import { GeneratingResponse } from "./GeneratingResponse";
 
 // Función para limpiar contenido markdown antes de mostrar
 const cleanContent = (content: string): string => {
@@ -29,6 +30,7 @@ interface ChatV2Props {
   userName: string | null;
   isLoading: boolean;
   streamingHtml: string | null;
+  isGenerating?: boolean; // Nueva prop para controlar el estado de generación
   onEditLastUser?: (content: string) => void;
   // Inline edit controls for last user message
   isEditingLast?: boolean;
@@ -37,6 +39,8 @@ interface ChatV2Props {
   onCancelEditLast?: () => void;
   isBusy?: boolean;
   patient?: any; // Para acceder al idioma preferido
+  error?: string | null; // Mensaje de error
+  onClearError?: () => void; // Función para limpiar el error
 }
 
 export const ChatV2: React.FC<ChatV2Props> = ({
@@ -44,12 +48,15 @@ export const ChatV2: React.FC<ChatV2Props> = ({
   userName,
   isLoading,
   streamingHtml,
+  isGenerating = false, // Valor por defecto
   onEditLastUser,
   isEditingLast,
   onStartEditLast,
   onSaveEditLast,
   onCancelEditLast,
   isBusy,
+  error,
+  onClearError,
 }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -284,7 +291,7 @@ export const ChatV2: React.FC<ChatV2Props> = ({
               });
             })()}
 
-            {streamingHtml !== null && (
+            {streamingHtml && streamingHtml.trim() && (
               <div className="flex gap-3 w-full" data-message data-message-id="streaming">
                 <Avatar className="w-10 h-10 flex-shrink-0 mt-1">
                   <AvatarImage src="/doctor_capybara.jpeg" />
@@ -295,10 +302,46 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                   <div className="bg-white text-gray-900 border border-gray-200 rounded-2xl px-4 py-3 shadow-sm mr-auto max-w-[85%] md:max-w-[85%]">
                     <TypewriterEffect
                       content={cleanContent(streamingHtml)}
-                      showTypingIndicator={true}
+                      showTypingIndicator={false}
                     />
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Mostrar mensaje de error si existe */}
+            {error && (
+              <div className="flex gap-3 w-full" data-message data-message-id="error">
+                <Avatar className="w-10 h-10 flex-shrink-0 mt-1">
+                  <AvatarImage src="/doctor_capybara.jpeg" />
+                  <AvatarFallback className="bg-red-600 text-white text-xs">⚠️</AvatarFallback>
+                </Avatar>
+
+                <div className="flex-1">
+                  <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 shadow-sm mr-auto max-w-[85%] md:max-w-[85%]">
+                    <div className="flex items-start justify-between">
+                      <div className="text-red-800 text-sm">
+                        <p className="font-medium mb-1">Error</p>
+                        <p>{error}</p>
+                      </div>
+                      {onClearError && (
+                        <button
+                          onClick={onClearError}
+                          className="text-red-600 hover:text-red-800 text-xs font-medium"
+                        >
+                          Cerrar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Mostrar el indicador de generación cuando se está generando */}
+            {!streamingHtml && isGenerating && (
+              <div className="space-y-4">
+                <GeneratingResponse />
               </div>
             )}
           </div>

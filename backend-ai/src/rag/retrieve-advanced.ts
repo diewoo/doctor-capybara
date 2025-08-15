@@ -19,6 +19,24 @@ export interface RetrievedAdvanced {
   score: number;
 }
 
+// Configuración configurable del sistema RAG
+export interface RAGConfig {
+  thresholds: number[]; // Thresholds de similitud a probar
+  defaultCategory: string; // Categoría por defecto
+  defaultScore: number; // Score por defecto para fallback
+  minThreshold: number; // Threshold mínimo absoluto
+  maxThreshold: number; // Threshold máximo absoluto
+}
+
+// Configuración por defecto que se puede personalizar
+export const DEFAULT_RAG_CONFIG: RAGConfig = {
+  thresholds: [0.6, 0.5, 0.4, 0.3], // Empezar alto, bajar gradualmente
+  defaultCategory: 'general', // Categoría por defecto
+  defaultScore: 0.0, // Score por defecto para fallback
+  minThreshold: 0.3, // Threshold mínimo absoluto
+  maxThreshold: 0.8, // Threshold máximo absoluto
+};
+
 /**
  * Interfaz para la respuesta de categorización de la IA
  */
@@ -184,6 +202,7 @@ export async function retrieveContextAdvanced(
   language: 'Español' | 'English',
   filters?: AdvancedFilters,
   topK: number = 10,
+  config: RAGConfig = DEFAULT_RAG_CONFIG,
 ): Promise<RetrievedAdvanced[]> {
   try {
     // Generar embedding de la consulta para búsqueda vectorial
@@ -192,51 +211,91 @@ export async function retrieveContextAdvanced(
     const embedding = await embeddingService.embed(userQuery);
     const vectorString = `[${embedding.join(',')}]`;
 
-    // Construir la consulta SQL usando la función optimizada similarity_search
-    let sql = `
-      SELECT
-        id, text, source, year,
-        COALESCE(domain, 'general') as category,
-        similarity
-      FROM similarity_search($2::vector, 0.6, $3, $1)
-    `;
+    // Sistema de threshold adaptativo para evitar alucinaciones
+    const thresholds = config.thresholds; // Configurable
+    let rows: any[] = [];
+    let usedThreshold = config.maxThreshold;
 
-    const params: any[] = [language, vectorString, topK];
+    for (const threshold of thresholds) {
+      const sql = `
+        SELECT
+          id, text, source, year,
+          $5 as category,
+          similarity
+        FROM similarity_search($1::vector, $2, $3, $4)
+      `;
 
-    // Agregar filtros de categoría
+      const params: any[] = [
+        vectorString,
+        threshold,
+        topK,
+        language,
+        config.defaultCategory,
+      ];
+      console.log(`🔍 Trying threshold ${threshold}...`);
+
+      try {
+        const result = await pool.query(sql, params);
+        rows = result.rows;
+        usedThreshold = threshold;
+
+        if (rows.length > 0) {
+          console.log(
+            `✅ Found ${rows.length} results with threshold ${threshold}`,
+          );
+          break;
+        } else {
+          console.log(
+            `⚠️ No results with threshold ${threshold}, trying next...`,
+          );
+        }
+      } catch (error) {
+        console.error(`❌ Error with threshold ${threshold}:`, error);
+        continue;
+      }
+    }
+
+    console.log(`🔍 Final threshold used: ${usedThreshold}`);
+    console.log(`🔍 Total results found: ${rows.length}`);
+    console.log('🔍 Raw results from similarity_search:', rows.length);
+    if (rows.length === 0) {
+      console.log(
+        '⚠️ No results found with similarity_search. This could mean:',
+      );
+      console.log('   - No documents in the database');
+      console.log('   - No documents in language:', language);
+      console.log('   - Threshold too high (current:', usedThreshold, ')');
+      console.log('   - Embeddings are NULL in database');
+    }
+
+    // Aplicar filtros de categoría post-query
+    let filteredRows = rows;
     if (filters?.category && filters.category.length > 0) {
-      sql += ` AND domain = ANY($${params.length})`;
-      params.push(filters.category);
-    }
+      // Necesitamos hacer una consulta adicional para obtener el domain de cada resultado
+      const ids = rows.map((row) => row.id);
+      if (ids.length > 0) {
+        const domainQuery = `
+          SELECT id, domain 
+          FROM docs 
+          WHERE id = ANY($1)
+        `;
+        const domainResult = await pool.query(domainQuery, [ids]);
 
-    // Agregar filtros de año
-    if (filters?.year_range) {
-      if (filters.year_range.min) {
-        sql += ` AND year >= $${params.length}`;
-        params.push(filters.year_range.min);
+        // Crear un mapa de id -> domain
+        const domainMap = new Map(
+          domainResult.rows.map((row) => [row.id, row.domain]),
+        );
+
+        // Filtrar por categorías permitidas
+        filteredRows = rows.filter((row) => {
+          const domain = domainMap.get(row.id);
+          return domain && filters.category!.includes(domain);
+        });
       }
-      if (filters.year_range.max) {
-        sql += ` AND year <= $${params.length}`;
-        params.push(filters.year_range.max);
-      }
     }
-
-    // Ordenar por similitud vectorial (score más bajo = más similar)
-    sql += `
-      ORDER BY
-        similarity ASC
-      LIMIT $${params.length}
-    `;
-
-    params.push(topK);
-
-    console.log('🔍 Advanced RAG query:', sql);
-    console.log('🔍 Parameters:', params);
-
-    const { rows } = await pool.query(sql, params);
 
     // Mapear resultados usando 'similarity' en lugar de 'score'
-    const mappedRows = rows.map((row) => ({
+    const mappedRows = filteredRows.map((row) => ({
       ...row,
       score: row.similarity, // Convertir similarity a score para compatibilidad
     }));
@@ -256,8 +315,8 @@ export async function retrieveContextAdvanced(
         text: doc.text,
         source: doc.source,
         year: doc.year,
-        category: doc.domain || 'general',
-        score: 0.0, // Score por defecto para resultados del fallback
+        category: doc.domain || config.defaultCategory,
+        score: config.defaultScore, // Score por defecto configurable
       }));
     } catch (fallbackError) {
       console.error('Error en fallback también:', fallbackError);

@@ -195,7 +195,7 @@ export const translations = {
     heroTitle: ["Natural Healing", "AI Powered"],
     heroSubtitle:
       "Embark on your holistic wellness journey with gentle, AI-guided support that honors the wisdom of traditional healing and natural medicine.",
-    beginJourney: "Begin Your Wellness Journey",
+    beginJourney: "Begin Journey",
     learnMore: "Learn More",
     disclaimer:
       "Educational Information Only: This AI provides guidance for wellness exploration. Always consult healthcare providers for medical concerns.",

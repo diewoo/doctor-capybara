@@ -52,6 +52,9 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
   // Estado para mostrar que se está generando la respuesta
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Estado para manejar errores
+  const [error, setError] = useState<string | null>(null);
+
   // Función para limpiar chunks acumulados de manera inteligente
   const cleanAccumulatedChunks = (): string => {
     const dirtyText = accumulatedChunksRef.current;
@@ -168,6 +171,10 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
         },
         onError: (err) => {
           console.error("Stream error:", err);
+          // Mostrar error al usuario
+          setError(
+            "Lo sentimos, hubo un problema al procesar tu consulta. Por favor, inténtalo de nuevo."
+          );
           // Ocultar estado de generación
           setIsGenerating(false);
           // Limpiar refs de chunks
@@ -181,6 +188,12 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
       });
     } catch (error) {
       console.error("Error sending message:", error);
+      setError(
+        "Lo sentimos, hubo un problema al enviar tu mensaje. Por favor, inténtalo de nuevo."
+      );
+      setIsGenerating(false);
+      setPendingUserMessage(null);
+      setIsDisabled(false);
     }
   };
 
@@ -224,6 +237,10 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
         },
         onError: (err: unknown) => {
           console.error("Edit stream error:", err);
+          // Mostrar error al usuario
+          setError(
+            "Lo sentimos, hubo un problema al editar tu mensaje. Por favor, inténtalo de nuevo."
+          );
           // Ocultar estado de generación
           setIsGenerating(false);
           // Limpiar refs de chunks
@@ -235,6 +252,11 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
       });
     } catch (error) {
       console.error("Error starting edit stream:", error);
+      setError(
+        "Lo sentimos, hubo un problema al editar tu mensaje. Por favor, inténtalo de nuevo."
+      );
+      setIsGenerating(false);
+      setIsEditingLast(false);
     }
   };
 
@@ -280,7 +302,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
             </div>
             <div className="text-xs text-gray-500 truncate">
               {isGenerating
-                ? "🔄 Generando respuesta..."
+                ? t("chatReadyToHelp") // No mostrar "typing" cuando se está generando
                 : isLoading || isSending || streamingHtml !== null
                   ? t("chatDoctorTyping")
                   : t("chatReadyToHelp")}
@@ -298,9 +320,12 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
           messages={allMessages as any}
           userName={userName}
           isLoading={isLoading || isSending || streamingHtml !== null}
-          streamingHtml={isGenerating ? "🔄 Generando respuesta..." : streamingHtml}
+          streamingHtml={streamingHtml}
+          isGenerating={isGenerating}
           isEditingLast={isEditingLast}
           isBusy={isLoading || isSending || streamingHtml !== null || isGenerating}
+          error={error}
+          onClearError={() => setError(null)}
           onStartEditLast={(content) => {
             setInput(content);
             setIsEditingLast(true);
