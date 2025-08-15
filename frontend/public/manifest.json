@@ -3,18 +3,18 @@
   "name": "Doctor Capybara - Tu Guía de Salud Natural con IA",
   "icons": [
     {
-      "src": "doctor_capybara.jpeg",
+      "src": "favicon.svg",
       "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/jpeg"
+      "type": "image/svg+xml"
     },
     {
-      "src": "doctor_capybara.jpeg",
-      "type": "image/jpeg",
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
       "sizes": "192x192"
     },
     {
-      "src": "doctor_capybara.jpeg",
-      "type": "image/jpeg",
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
       "sizes": "512x512"
     }
   ],

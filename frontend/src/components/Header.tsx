@@ -21,25 +21,25 @@ const Header = () => {
         (scrolled ? "shadow-md" : "shadow-none")
       }
     >
-      <div className="container mx-auto px-4 py-4">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <span className="text-2xl">🌿</span>
-            <span className="text-xl font-bold text-primary">Doctor Capybara</span>
+            <span className="text-xl sm:text-2xl">🌿</span>
+            <span className="text-lg sm:text-xl font-bold text-primary">Doctor Capybara</span>
           </div>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center space-x-8">
-            <a href="#features" className="text-foreground hover:text-primary transition-colors">
+          <nav className="hidden lg:flex items-center space-x-6 xl:space-x-8">
+            <a href="#features" className="text-foreground hover:text-primary transition-colors text-sm xl:text-base">
               {t("features")}
             </a>
-            <a href="#how" className="text-foreground hover:text-primary transition-colors">
+            <a href="#how" className="text-foreground hover:text-primary transition-colors text-sm xl:text-base">
               {t("howItWorks")}
             </a>
           </nav>
 
           {/* Language selector and CTA desktop */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden lg:flex items-center space-x-3 xl:space-x-4">
             <div className="flex items-center space-x-1 bg-white/90 backdrop-blur-sm rounded-lg p-1 shadow-lg border border-white/20">
               <button
                 onClick={() => changeLanguage("es")}
@@ -72,8 +72,8 @@ const Header = () => {
           {/* Mobile menu button */}
           <Sheet>
             <SheetTrigger asChild>
-              <button className="md:hidden p-2 rounded-lg hover:bg-white/10 transition-colors">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button className="lg:hidden p-2 rounded-lg hover:bg-white/10 transition-colors">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -84,15 +84,15 @@ const Header = () => {
               </button>
             </SheetTrigger>
 
-            <SheetContent side="right">
-              <nav className="flex flex-col gap-4 p-4">
+            <SheetContent side="right" className="w-[280px] sm:w-[320px]">
+              <nav className="flex flex-col gap-4 p-4 sm:p-6">
                 <a
                   href="#features"
-                  className="text-foreground hover:text-primary transition-colors"
+                  className="text-foreground hover:text-primary transition-colors text-base sm:text-lg font-medium"
                 >
                   {t("features")}
                 </a>
-                <a href="#how" className="text-foreground hover:text-primary transition-colors">
+                <a href="#how" className="text-foreground hover:text-primary transition-colors text-base sm:text-lg font-medium">
                   {t("howItWorks")}
                 </a>
 
@@ -121,7 +121,7 @@ const Header = () => {
                 </div>
 
                 <a href="/dashboard">
-                  <Button className="w-full gradient-button">{t("startJourney")}</Button>
+                  <Button className="w-full gradient-button text-base sm:text-lg py-3">{t("startJourney")}</Button>
                 </a>
               </nav>
             </SheetContent>
