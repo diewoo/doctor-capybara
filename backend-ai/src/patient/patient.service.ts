@@ -584,83 +584,23 @@ IMPORTANTE: Responde en este formato JSON exacto:
       throw new HttpException('Patient not found', HttpStatus.NOT_FOUND);
     }
 
-    // Función para limpiar markdown de chunks individuales
+    // Función para limpiar HTML de chunks individuales
     const cleanChunk = (chunk: string): string => {
       if (!chunk) return chunk;
 
-      // Limpiar JSON parcial que puede aparecer durante el streaming
-      // Esto evita que se muestre temporalmente {"response": en el frontend
       let cleanedChunk = chunk;
 
-      // Caso 1: Chunk completo que empieza con JSON válido
-      if (cleanedChunk.startsWith('{"response":')) {
-        try {
-          const parsed = JSON.parse(cleanedChunk);
-          if (parsed.response) {
-            return parsed.response;
-          }
-        } catch {
-          // Si no se puede parsear, continuar con la limpieza normal
-        }
-      }
-
-      // Caso 2: Chunk que contiene JSON parcial con {"response":
-      if (cleanedChunk.includes('{"response":')) {
-        const responseStart = cleanedChunk.indexOf('"response":') + 11; // 11 es la longitud de '"response":'
-        if (responseStart < cleanedChunk.length) {
-          // Extraer desde después de "response": hasta el final del chunk
-          const afterResponse = cleanedChunk.substring(responseStart);
-          // Remover comillas, comas, espacios y caracteres de control iniciales
-          cleanedChunk = afterResponse.replace(/^["\s,}\]]+/, '');
-        }
-      }
-
-      // Caso 3: Chunk que contiene "response:" (sin llaves)
-      // Este es el caso que estás viendo en los logs
-      if (cleanedChunk.includes('"response":')) {
-        const responseStart = cleanedChunk.indexOf('"response":') + 11; // 11 es la longitud de '"response":'
-        if (responseStart < cleanedChunk.length) {
-          // Extraer desde después de "response": hasta el final del chunk
-          const afterResponse = cleanedChunk.substring(responseStart);
-          // Remover comillas, espacios y caracteres de control iniciales
-          cleanedChunk = afterResponse.replace(/^["\s]+/, '');
-        }
-      }
-
-      // Caso 4: Chunk que solo contiene caracteres de JSON (como comillas, llaves, etc.)
-      // Esto puede pasar cuando el chunk es muy pequeño
-      if (cleanedChunk.match(/^[{"\s,}\]:]+$/)) {
-        return ''; // No mostrar chunks que solo contengan caracteres de JSON
-      }
-
-      // Caso 5: Chunk que empieza con caracteres de JSON pero no es completo
-      // Esto puede pasar con responseMimeType: 'application/json'
-      if (
-        cleanedChunk.startsWith('"') &&
-        cleanedChunk.includes('"response":')
-      ) {
-        // Buscar el inicio del contenido después de "response":
-        const responseStart = cleanedChunk.indexOf('"response":') + 11;
-        if (responseStart < cleanedChunk.length) {
-          const afterResponse = cleanedChunk.substring(responseStart);
-          // Remover comillas y caracteres de control iniciales
-          cleanedChunk = afterResponse.replace(/^["\s,]+/, '');
-        }
-      }
-
-      // Limpiar markdown JSON
-      if (cleanedChunk.includes('```json')) {
-        cleanedChunk = cleanedChunk
-          .replace(/```json\s*/, '')
-          .replace(/\s*```$/, '');
-      }
-
-      // Limpiar markdown general
+      // Limpiar markdown si aparece
       if (cleanedChunk.includes('```')) {
         cleanedChunk = cleanedChunk
-          .replace(/```\s*/, '')
+          .replace(/```\w*\s*/, '')
           .replace(/\s*```$/, '');
       }
+
+      // Limpiar caracteres de control y espacios extra
+      cleanedChunk = cleanedChunk
+        .replace(/\s+/g, ' ') // Múltiples espacios a uno solo
+        .trim();
 
       return cleanedChunk;
     };
@@ -675,7 +615,7 @@ IMPORTANTE: Responde en este formato JSON exacto:
         topK: 40,
         topP: 0.95,
         maxOutputTokens: 1024,
-        responseMimeType: 'application/json', // Forzar respuesta en JSON puro
+        // Removido responseMimeType para permitir HTML natural
       },
     });
 
@@ -928,7 +868,7 @@ Traducción:`;
         console.error('Error retrieving RAG context:', error);
       }
 
-      // Prompt optimizado que incluye respuesta + sugerencias en una sola llamada
+      // Prompt optimizado para respuesta directa en HTML
       const prompt =
         getPatientChatPrompt(
           detectedLanguage,
@@ -942,29 +882,28 @@ Traducción:`;
         ) +
         `
 
-IMPORTANTE: Responde en este formato JSON exacto:
-{
-  "response": "Tu respuesta principal aquí...",
-  "suggestions": ["Sugerencia 1", "Sugerencia 2", "Sugerencia 3", "Sugerencia 4"]
-}
+IMPORTANTE: Responde DIRECTAMENTE en HTML limpio, NO en formato JSON.
 
-🔹 FORMATO OBLIGATORIO DE SUGERENCIAS:
-- Si haces preguntas → genera RESPUESTAS directas a esas preguntas
-- Si das consejos → genera sugerencias para aprender más sobre esos consejos
-- Las sugerencias deben ser lo que el usuario querría RESPONDER o HACER
+🔹 FORMATO OBLIGATORIO:
+- Usa SOLO HTML limpio: <div>, <p>, <ul>, <li>, <strong>
+- NO uses JSON, markdown, ni bloques de código
+- Responde de forma natural y conversacional
+- Incluye la información médica disponible si la hay
 
-❌ PROHIBIDO:
-- NO generes instrucciones como "Describe", "Indica", "Comparte"
-- NO uses verbos imperativos
-- NO generes preguntas adicionales
+✅ EJEMPLO DE RESPUESTA CORRECTA:
+<div style="margin:10px">
+  <p><strong>Basándome en información médica disponible:</strong></p>
+  <p>Según estudios médicos, la aromaterapia con lavanda puede ayudar a reducir la ansiedad.</p>
+  <ul>
+    <li>Prueba aceite esencial de lavanda</li>
+    <li>Practica respiración profunda</li>
+  </ul>
+</div>
+
+❌ NO HACER:
+- NO uses formato JSON
 - NO uses markdown
-- Solo JSON puro
-
-
-✅ GENERA:
-- 4 sugerencias contextuales a tu respuesta
-- En el MISMO IDIOMA de la conversación
-- Que sean respuestas directas o acciones específicas`;
+- NO uses bloques de código`;
 
       // Log prompt details for validation
       this.logPromptDetails(
@@ -998,38 +937,83 @@ IMPORTANTE: Responde en este formato JSON exacto:
         return;
       }
 
-      // Parsear respuesta combinada (respuesta + sugerencias)
-      let suggestions: string[] = [];
+      // Limpiar la respuesta final de markdown si aparece
+      let cleanResponse = aiResponse;
+      if (cleanResponse.includes('```')) {
+        cleanResponse = cleanResponse
+          .replace(/```\w*\s*/, '')
+          .replace(/\s*```$/, '')
+          .trim();
+      }
 
+      // Generar sugerencias inteligentes basadas en la respuesta
+      let suggestions: string[] = [];
       try {
-        // Limpiar markdown antes de parsear JSON
-        let cleanResponse = aiResponse;
-        if (cleanResponse.includes('```json')) {
-          cleanResponse = cleanResponse
+        const suggestionsPrompt = `
+          Basándote en esta respuesta del asistente médico, genera 4 sugerencias de respuesta que el usuario podría enviar a continuación.
+          
+          Respuesta del asistente:
+          ${cleanResponse}
+          
+          Reglas:
+          - Solo responde con un array JSON de 4 strings
+          - Cada sugerencia debe ser una respuesta natural (máx 80 caracteres)
+          - En el mismo idioma de la respuesta (${detectedLanguage})
+          - NO uses signos de interrogación, deben ser respuestas, no preguntas
+          - Si el asistente pidió información, ofrece respuestas a esa información
+          
+          Ejemplo de formato:
+          ["Tengo 25 años", "No tomo medicamentos", "Duermo 6 horas", "Me siento estresado"]
+          
+          Sugerencias:`;
+
+        const suggestionsResult =
+          await model.generateContent(suggestionsPrompt);
+        const suggestionsText = suggestionsResult.response.text();
+
+        // Limpiar y parsear sugerencias
+        let cleanSuggestions = suggestionsText;
+        if (cleanSuggestions.includes('```json')) {
+          cleanSuggestions = cleanSuggestions
             .replace(/```json\s*/, '')
             .replace(/\s*```$/, '');
-        } else if (cleanResponse.includes('```')) {
-          cleanResponse = cleanResponse
+        } else if (cleanSuggestions.includes('```')) {
+          cleanSuggestions = cleanSuggestions
             .replace(/```\s*/, '')
             .replace(/\s*```$/, '');
         }
 
-        // Intentar parsear como JSON
-        const parsed = JSON.parse(cleanResponse);
-        if (parsed.response && Array.isArray(parsed.suggestions)) {
-          // Si es JSON válido, extraer sugerencias
-          suggestions = parsed.suggestions.slice(0, 4);
-          // También actualizar aiResponse para el contenido real
-          aiResponse = parsed.response;
-        } else {
-          // Fallback: no hay sugerencias
-          suggestions = [];
+        try {
+          const parsedSuggestions = JSON.parse(cleanSuggestions);
+          if (Array.isArray(parsedSuggestions)) {
+            suggestions = parsedSuggestions.slice(0, 4);
+          }
+        } catch {
+          console.log(
+            'No se pudieron parsear las sugerencias, usando fallback',
+          );
         }
-      } catch (error) {
-        console.error('Error parsing response:', error);
-        // Fallback: no hay sugerencias, usar respuesta completa
-        suggestions = [];
-        console.log('Stream response was not JSON, using as plain text');
+      } catch {
+        console.log('Error generando sugerencias, usando fallback');
+      }
+
+      // Fallback: sugerencias básicas si falla la generación
+      if (suggestions.length === 0) {
+        if (detectedLanguage === 'Español') {
+          suggestions = [
+            'Tengo 30 años',
+            'No tomo medicamentos',
+            'Duermo 7 horas por noche',
+            'Me siento bien en general',
+          ];
+        } else {
+          suggestions = [
+            'I am 30 years old',
+            "I don't take any medications",
+            'I sleep 7 hours per night',
+            'I feel generally well',
+          ];
+        }
       }
 
       const userMessage: ChatMessage = {
@@ -1039,7 +1023,7 @@ IMPORTANTE: Responde en este formato JSON exacto:
       };
       const aiMessage: ChatMessage = {
         role: 'ai',
-        content: aiResponse,
+        content: cleanResponse, // Usar la respuesta limpia
         timestamp: new Date().toISOString(),
         suggestions,
       };
