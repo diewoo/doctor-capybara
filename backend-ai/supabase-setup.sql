@@ -5,11 +5,11 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE IF NOT EXISTS docs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     language TEXT NOT NULL,
-    domain TEXT,
-    topic TEXT,
-    text TEXT NOT NULL,
-    source TEXT,
-    year INTEGER,
+    domain TEXT,           -- category (Natural Medicine, Mental Health, Wellness)
+    topic TEXT,            -- condition (Insomnia, Anxiety, etc.)
+    text TEXT NOT NULL,    -- suggestion (la recomendación médica)
+    source TEXT,           -- fuente de la información
+    year INTEGER,          -- año de la información
     safety_tags JSONB DEFAULT '[]',
     embedding vector(384), -- 384 dimensiones para multilingual-e5-small
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

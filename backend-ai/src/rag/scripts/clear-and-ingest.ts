@@ -13,8 +13,19 @@ type MedicalRecommendation = {
   suggestion: string;
   language: string;
   source: string;
-  year: number;
+  year?: number;
 };
+
+async function clearDatabase() {
+  try {
+    console.log('🧹 Limpiando base de datos...');
+    await pool.query('DELETE FROM docs');
+    console.log('✅ Base de datos limpiada');
+  } catch (error) {
+    console.error('❌ Error limpiando base de datos:', error);
+    throw error;
+  }
+}
 
 async function upsertRecommendation(r: MedicalRecommendation) {
   if (!r.suggestion) {
@@ -33,16 +44,7 @@ async function upsertRecommendation(r: MedicalRecommendation) {
     // Insertar en la tabla docs
     await pool.query(
       `INSERT INTO docs (id, language, domain, topic, text, source, year, safety_tags, embedding)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
-       ON CONFLICT (id) DO UPDATE SET 
-         language=EXCLUDED.language, 
-         domain=EXCLUDED.domain, 
-         topic=EXCLUDED.topic,
-         text=EXCLUDED.text, 
-         source=EXCLUDED.source, 
-         year=EXCLUDED.year, 
-         safety_tags=EXCLUDED.safety_tags, 
-         embedding=EXCLUDED.embedding`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         crypto.randomUUID(),
         r.language,
@@ -50,7 +52,7 @@ async function upsertRecommendation(r: MedicalRecommendation) {
         r.condition, // topic = condition (Insomnia, Anxiety, etc.)
         r.suggestion, // text = suggestion (la recomendación médica)
         r.source,
-        r.year,
+        r.year || null,
         [], // safety_tags vacío por defecto
         vectorString,
       ],
@@ -67,7 +69,9 @@ async function upsertRecommendation(r: MedicalRecommendation) {
 
 async function main() {
   try {
-    console.log('🚀 Iniciando ingesta de recomendaciones médicas...');
+    console.log(
+      '🚀 Iniciando limpieza y recarga de recomendaciones médicas...',
+    );
 
     // Verificar conexión a la base de datos
     try {
@@ -82,20 +86,18 @@ async function main() {
         '💡 Asegúrate de que PostgreSQL esté ejecutándose y las variables de entorno estén configuradas',
       );
       console.log('📋 Variables de entorno necesarias: SUPABASE_DB_URL');
-      console.log(
-        '🔧 Para desarrollo local, puedes usar Docker: docker run --name postgres -e POSTGRES_PASSWORD=password -p 5432:5432 -d postgres:15',
-      );
       return;
     }
 
-    // Lee un archivo NDJSON (una línea = JSON)
-    const file = process.argv[2] || 'medical-data.ndjson';
+    // Limpiar base de datos
+    await clearDatabase();
+
+    // Lee el archivo NDJSON corregido
+    const file = 'medical-data.ndjson';
 
     if (!fs.existsSync(file)) {
-      console.log(
-        `📁 Archivo ${file} no encontrado. Creando archivo de ejemplo...`,
-      );
-      createExampleDataFile(file);
+      console.error(`📁 Archivo ${file} no encontrado`);
+      return;
     }
 
     const lines = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean);
@@ -120,55 +122,13 @@ async function main() {
     console.log('🔧 Optimizando base de datos...');
     await pool.query('ANALYZE docs;');
 
-    console.log('🎉 Ingesta completa!');
+    console.log('🎉 Recarga completa!');
+    console.log(`📊 Total de recomendaciones cargadas: ${lines.length}`);
   } catch (error) {
-    console.error('❌ Error durante la ingesta:', error);
+    console.error('❌ Error durante la recarga:', error);
   } finally {
     await pool.end();
   }
-}
-
-function createExampleDataFile(filename: string) {
-  const exampleData = [
-    {
-      category: 'Natural Medicine',
-      condition: 'Insomnia',
-      suggestion: 'Try chamomile tea before bedtime to improve sleep quality',
-      language: 'English',
-      source: 'National Center for Complementary and Integrative Health, 2022',
-      year: 2022,
-    },
-    {
-      category: 'Mental Health',
-      condition: 'Anxiety',
-      suggestion:
-        'Practice mindfulness meditation for 10-30 minutes daily to reduce anxiety conditions',
-      language: 'English',
-      source: 'American Psychological Association, 2021',
-      year: 2021,
-    },
-    {
-      category: 'Wellness',
-      condition: 'Hydration',
-      suggestion: 'Aim to drink at least 8 glasses of water per day',
-      language: 'English',
-      source: 'General health guideline',
-      year: 2023,
-    },
-    {
-      category: 'Medicina Natural',
-      condition: 'Insomnio',
-      suggestion:
-        'Toma té de manzanilla antes de acostarte para mejorar la calidad del sueño',
-      language: 'Español',
-      source: 'Centro Nacional de Salud Complementaria e Integrativa, 2022',
-      year: 2022,
-    },
-  ];
-
-  const content = exampleData.map((item) => JSON.stringify(item)).join('\n');
-  fs.writeFileSync(filename, content);
-  console.log(`📝 Archivo de ejemplo creado: ${filename}`);
 }
 
 main().catch((e) => {

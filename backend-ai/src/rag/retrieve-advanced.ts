@@ -7,8 +7,6 @@ const pool = new pg.Pool({ connectionString: process.env.SUPABASE_DB_URL });
 
 export interface AdvancedFilters {
   category?: string[];
-  evidence_level?: string[];
-  severity?: string[];
   year_range?: { min?: number; max?: number };
 }
 
@@ -18,8 +16,6 @@ export interface RetrievedAdvanced {
   source: string;
   year: number;
   category: string;
-  evidence_level: string;
-  severity: string;
   score: number;
 }
 
@@ -37,9 +33,7 @@ export async function retrieveContextAdvanced(
     let sql = `
       SELECT 
         id, text, source, year, 
-        COALESCE(category, 'general') as category,
-        COALESCE(evidence_level, 'D') as evidence_level,
-        COALESCE(severity, 'low') as severity,
+        COALESCE(domain, 'general') as category,
         1.0 as score
       FROM docs
       WHERE language = $1
@@ -50,22 +44,8 @@ export async function retrieveContextAdvanced(
 
     // Agregar filtros de categoría
     if (filters?.category && filters.category.length > 0) {
-      sql += ` AND category = ANY($${paramIndex})`;
+      sql += ` AND domain = ANY($${paramIndex})`;
       params.push(filters.category);
-      paramIndex++;
-    }
-
-    // Agregar filtros de nivel de evidencia
-    if (filters?.evidence_level && filters.evidence_level.length > 0) {
-      sql += ` AND evidence_level = ANY($${paramIndex})`;
-      params.push(filters.evidence_level);
-      paramIndex++;
-    }
-
-    // Agregar filtros de severidad
-    if (filters?.severity && filters.severity.length > 0) {
-      sql += ` AND severity = ANY($${paramIndex})`;
-      params.push(filters.severity);
       paramIndex++;
     }
 
@@ -86,13 +66,6 @@ export async function retrieveContextAdvanced(
     // Ordenar por relevancia (priorizar evidencia A, luego B, etc.)
     sql += `
       ORDER BY 
-        CASE evidence_level
-          WHEN 'A' THEN 1
-          WHEN 'B' THEN 2
-          WHEN 'C' THEN 3
-          WHEN 'D' THEN 4
-          ELSE 5
-        END,
         year DESC
       LIMIT $${paramIndex}
     `;
@@ -139,8 +112,7 @@ export async function retrieveContextSmart(
   const filters: AdvancedFilters | undefined = detectedCategory
     ? {
         category: [detectedCategory],
-        evidence_level: ['A', 'B'], // Priorizar evidencia alta
-        severity: ['low', 'medium'], // Evitar casos de emergencia
+        year_range: { min: 2020, max: 2023 }, // Assuming a recent year range for context
       }
     : undefined;
 
@@ -231,7 +203,7 @@ function detectLanguage(text: string): 'Español' | 'English' {
 }
 
 /**
- * Detectar categoría médica de la consulta
+ * Detectar categoría médica de la consulta usando las 3 categorías principales
  */
 function detectMedicalCategory(userQuery: string): string | null {
   const queryLower = userQuery.toLowerCase();
@@ -240,405 +212,113 @@ function detectMedicalCategory(userQuery: string): string | null {
   console.log('🔍 DEBUG: Query original:', userQuery);
   console.log('🔍 DEBUG: Query en minúsculas:', queryLower);
 
+  // Solo las 3 categorías principales que me diste
   const medicalCategories = [
-    // Cardiología y circulación
+    // Natural Medicine / Medicina Natural
     {
       keywords: [
-        'heart',
-        'cardiac',
-        'cardiovascular',
-        'blood pressure',
-        'hypertension',
-        'corazón',
-        'cardiaco',
-        'cardiovascular',
-        'presión',
-        'hipertensión',
-        'palpitaciones',
-        'palpitations',
-        'dolor de pecho',
-        'chest pain',
-        'mareo',
-        'dizziness',
-        'fatiga',
-        'fatigue',
-        'edema',
-        'swelling',
+        'natural',
+        'herbal',
+        'plant',
+        'tea',
+        'essential oil',
+        'aromatherapy',
+        'natural',
+        'herbal',
+        'planta',
+        'té',
+        'aceite esencial',
+        'aromaterapia',
+        'chamomile',
+        'ginger',
+        'lavender',
+        'peppermint',
+        'arnica',
+        'aloe',
+        'manzanilla',
+        'jengibre',
+        'lavanda',
+        'menta',
+        'árnica',
+        'sábila',
+        'herbs',
+        'supplements',
+        'remedies',
+        'hierbas',
+        'suplementos',
+        'remedios',
       ],
-      category: 'cardiology',
+      category: 'Natural Medicine',
     },
-    // Neurología y cerebro
+    // Mental Health / Salud Mental
     {
       keywords: [
-        'brain',
-        'neurological',
-        'nervous',
-        'headache',
-        'migraine',
-        'cerebro',
-        'neurológico',
-        'nervioso',
-        'dolor de cabeza',
-        'migraña',
-        'jaqueca',
-        'cabeza',
-        'duele cabeza',
-        'dolor cabeza',
-        'memory',
-        'memoria',
-        'concentration',
-        'concentración',
-        'tremor',
-        'temblor',
-        'numbness',
-        'entumecimiento',
-        'seizure',
-        'convulsión',
-      ],
-      category: 'neurology',
-    },
-    // Pediatría y niños
-    {
-      keywords: [
-        'child',
-        'pediatric',
-        'infant',
-        'baby',
-        'niño',
-        'pediátrico',
-        'bebé',
-        'infante',
-        'fever',
-        'fiebre',
-        'vaccine',
-        'vacuna',
-        'growth',
-        'crecimiento',
-        'development',
-        'desarrollo',
-      ],
-      category: 'pediatrics',
-    },
-    // Dermatología y piel
-    {
-      keywords: [
-        'skin',
-        'dermatology',
-        'rash',
-        'acne',
-        'piel',
-        'dermatología',
-        'erupción',
-        'acné',
-        'itch',
-        'picazón',
-        'burn',
-        'quemadura',
-        'wound',
-        'herida',
-        'mole',
-        'lunar',
-        'hair loss',
-        'caída de pelo',
-      ],
-      category: 'dermatology',
-    },
-    // Psiquiatría y salud mental
-    {
-      keywords: [
-        'mental',
-        'psychology',
         'anxiety',
         'depression',
         'stress',
         'mental',
-        'psicología',
+        'psychology',
+        'mood',
         'ansiedad',
         'depresión',
         'estrés',
+        'mental',
+        'psicología',
+        'ánimo',
+        'meditation',
+        'mindfulness',
+        'therapy',
+        'counseling',
+        'meditación',
+        'atención plena',
+        'terapia',
+        'consejería',
         'panic',
+        'fear',
+        'worry',
         'pánico',
-        'mood',
-        'estado de ánimo',
+        'miedo',
+        'preocupación',
         'sleep',
-        'sueño',
         'insomnia',
+        'sueño',
         'insomnio',
-        'appetite',
-        'apetito',
-        'concentration',
+        'dormir',
       ],
-      category: 'psychiatry',
+      category: 'Mental Health',
     },
-    // Endocrinología y metabolismo
+    // Wellness / Bienestar
     {
       keywords: [
-        'diabetes',
-        'insulin',
-        'blood sugar',
-        'glucose',
-        'diabetes',
-        'insulina',
-        'azúcar',
-        'glucosa',
-        'thyroid',
-        'tiroides',
-        'hormone',
-        'hormona',
+        'wellness',
+        'health',
+        'fitness',
+        'nutrition',
+        'diet',
+        'exercise',
+        'bienestar',
+        'salud',
+        'fitness',
+        'nutrición',
+        'dieta',
+        'ejercicio',
+        'hydration',
+        'lifestyle',
+        'prevention',
+        'prevención',
+        'hidratación',
+        'estilo de vida',
         'weight',
         'peso',
-        'metabolism',
-        'metabolismo',
-        'cholesterol',
-        'colesterol',
-        'thyroid',
-        'tiroides',
+        'activity',
+        'physical',
+        'físico',
+        'cardio',
+        'strength',
+        'fuerza',
+        'flexibility',
       ],
-      category: 'endocrinology',
-    },
-    // Gastroenterología
-    {
-      keywords: [
-        'stomach',
-        'estómago',
-        'digestion',
-        'digestión',
-        'nausea',
-        'náusea',
-        'vomit',
-        'vómito',
-        'diarrhea',
-        'diarrea',
-        'constipation',
-        'estreñimiento',
-        'bloating',
-        'hinchazón',
-        'acid reflux',
-        'reflujo',
-        'ulcer',
-        'úlcera',
-        'liver',
-        'hígado',
-        'gallbladder',
-        'vesícula',
-      ],
-      category: 'gastroenterology',
-    },
-    // Respiratorio
-    {
-      keywords: [
-        'lung',
-        'pulmón',
-        'breathing',
-        'respiración',
-        'cough',
-        'tos',
-        'asthma',
-        'asma',
-        'bronchitis',
-        'bronquitis',
-        'pneumonia',
-        'neumonía',
-        'shortness of breath',
-        'falta de aire',
-        'wheezing',
-        'sibilancias',
-        'chest congestion',
-        'congestión de pecho',
-      ],
-      category: 'respiratory',
-    },
-    // Ortopedia y músculos
-    {
-      keywords: [
-        'bone',
-        'hueso',
-        'joint',
-        'articulación',
-        'muscle',
-        'músculo',
-        'back pain',
-        'dolor de espalda',
-        'knee',
-        'rodilla',
-        'shoulder',
-        'hombro',
-        'fracture',
-        'fractura',
-        'sprain',
-        'esguince',
-        'arthritis',
-        'artritis',
-        'inflammation',
-        'inflamación',
-      ],
-      category: 'orthopedics',
-    },
-    // Ginecología y salud femenina
-    {
-      keywords: [
-        'pregnancy',
-        'embarazo',
-        'menstruation',
-        'menstruación',
-        'ovary',
-        'ovario',
-        'breast',
-        'seno',
-        'mammogram',
-        'mamografía',
-        'menopause',
-        'menopausia',
-        'fertility',
-        'fertilidad',
-      ],
-      category: 'gynecology',
-    },
-    // Urología y salud masculina
-    {
-      keywords: [
-        'prostate',
-        'próstata',
-        'urination',
-        'micción',
-        'kidney',
-        'riñón',
-        'bladder',
-        'vejiga',
-        'urinary tract',
-        'tracto urinario',
-        'erectile dysfunction',
-        'disfunción eréctil',
-      ],
-      category: 'urology',
-    },
-    // Oftalmología y visión
-    {
-      keywords: [
-        'eye',
-        'ojo',
-        'vision',
-        'visión',
-        'blur',
-        'borrosa',
-        'dry eyes',
-        'ojos secos',
-        'redness',
-        'enrojecimiento',
-        'glasses',
-        'lentes',
-        'contact lens',
-        'lentes de contacto',
-        'cataract',
-        'catarata',
-      ],
-      category: 'ophthalmology',
-    },
-    // Otorrinolaringología
-    {
-      keywords: [
-        'ear',
-        'oído',
-        'nose',
-        'nariz',
-        'throat',
-        'garganta',
-        'hearing',
-        'audición',
-        'tinnitus',
-        'zumbido',
-        'sinus',
-        'seno nasal',
-        'tonsil',
-        'amígdala',
-        'voice',
-        'voz',
-      ],
-      category: 'ent',
-    },
-    // Inmunología y alergias
-    {
-      keywords: [
-        'allergy',
-        'alergia',
-        'immune',
-        'inmune',
-        'infection',
-        'infección',
-        'fever',
-        'fiebre',
-        'inflammation',
-        'inflamación',
-        'autoimmune',
-        'autoinmune',
-        'vaccine',
-        'vacuna',
-        'antibody',
-        'anticuerpo',
-      ],
-      category: 'immunology',
-    },
-    // Nutrición y bienestar
-    {
-      keywords: [
-        'nutrition',
-        'nutrición',
-        'diet',
-        'dieta',
-        'vitamin',
-        'vitamina',
-        'supplement',
-        'suplemento',
-        'weight loss',
-        'pérdida de peso',
-        'healthy eating',
-        'alimentación saludable',
-        'fiber',
-        'fibra',
-      ],
-      category: 'nutrition',
-    },
-    // Sueño y descanso
-    {
-      keywords: [
-        'sleep',
-        'insomnia',
-        'dormir',
-        'sueño',
-        'no puedo dormir',
-        'problemas para dormir',
-        'dificultad para dormir',
-        'rest',
-        'descanso',
-        'tired',
-        'cansado',
-        'energy',
-        'energía',
-        'circadian',
-        'circadiano',
-      ],
-      category: 'sleep',
-    },
-    // Dolor general
-    {
-      keywords: [
-        'pain',
-        'dolor',
-        'ache',
-        'duele',
-        'me duele',
-        'chronic pain',
-        'dolor crónico',
-        'acute pain',
-        'dolor agudo',
-        'discomfort',
-        'malestar',
-        'sore',
-        'adolorido',
-        'tender',
-        'sensible',
-      ],
-      category: 'pain_management',
+      category: 'Wellness',
     },
   ];
 
