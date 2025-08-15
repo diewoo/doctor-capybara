@@ -7,6 +7,23 @@ import TypewriterEffect from "./TypewriterEffect";
 import { Button } from "../ui/button";
 import { useLanguage } from "@/hooks/use-language";
 
+// Función para limpiar contenido markdown antes de mostrar
+const cleanContent = (content: string): string => {
+  if (!content) return content;
+
+  // Limpiar markdown JSON
+  if (content.includes("```json")) {
+    return content.replace(/```json\s*/, "").replace(/\s*```$/, "");
+  }
+
+  // Limpiar markdown general
+  if (content.includes("```")) {
+    return content.replace(/```\s*/, "").replace(/\s*```$/, "");
+  }
+
+  return content;
+};
+
 interface ChatV2Props {
   messages: ChatMessage[];
   userName: string | null;
@@ -228,7 +245,7 @@ export const ChatV2: React.FC<ChatV2Props> = ({
                           ) : (
                             <div className="space-y-2">
                               <TypewriterEffect
-                                content={message.content}
+                                content={cleanContent(message.content)}
                                 showTypingIndicator={false}
                               />
 
@@ -276,7 +293,10 @@ export const ChatV2: React.FC<ChatV2Props> = ({
 
                 <div className="flex-1">
                   <div className="bg-white text-gray-900 border border-gray-200 rounded-2xl px-4 py-3 shadow-sm mr-auto max-w-[85%] md:max-w-[85%]">
-                    <TypewriterEffect content={streamingHtml} showTypingIndicator={true} />
+                    <TypewriterEffect
+                      content={cleanContent(streamingHtml)}
+                      showTypingIndicator={true}
+                    />
                   </div>
                 </div>
               </div>

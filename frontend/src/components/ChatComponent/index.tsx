@@ -44,9 +44,71 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
 
   const [streamingHtml, setStreamingHtml] = useState<string | null>(null);
   const streamAbortRef = React.useRef<null | (() => void)>(null);
-  const pendingDeltaRef = React.useRef<string>("");
-  const rafRef = React.useRef<number | null>(null);
   const [isEditingLast, setIsEditingLast] = useState(false);
+
+  // Acumular chunks hasta que esté completo
+  const accumulatedChunksRef = React.useRef<string>("");
+
+  // Estado para mostrar que se está generando la respuesta
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Función para limpiar chunks acumulados de manera inteligente
+  const cleanAccumulatedChunks = (): string => {
+    const dirtyText = accumulatedChunksRef.current;
+    if (!dirtyText) return "";
+
+    let cleanedText = dirtyText;
+
+    // Caso 1: Texto completo que empieza con JSON válido
+    if (cleanedText.startsWith('{"response":')) {
+      try {
+        const parsed = JSON.parse(cleanedText);
+        if (parsed.response) {
+          return parsed.response;
+        }
+      } catch {
+        // Si no se puede parsear, continuar con la limpieza normal
+      }
+    }
+
+    // Caso 2: Texto que contiene JSON parcial con {"response":
+    if (cleanedText.includes('{"response":')) {
+      const responseStart = cleanedText.indexOf('"response":') + 11;
+      if (responseStart < cleanedText.length) {
+        const afterResponse = cleanedText.substring(responseStart);
+        // Remover comillas, comas, espacios y caracteres de control iniciales
+        cleanedText = afterResponse.replace(/^["\s,}\]]+/, "");
+      }
+    }
+
+    // Caso 3: Texto que contiene "response:" (sin llaves)
+    if (cleanedText.includes('"response":')) {
+      const responseStart = cleanedText.indexOf('"response":') + 11;
+      if (responseStart < cleanedText.length) {
+        const afterResponse = cleanedText.substring(responseStart);
+        // Remover comillas, espacios y caracteres de control iniciales
+        cleanedText = afterResponse.replace(/^["\s]+/, "");
+      }
+    }
+
+    // Caso 4: Remover caracteres de control JSON al inicio
+    cleanedText = cleanedText.replace(/^[{"\s,}\]:]+/, "");
+
+    // Caso 5: Remover caracteres de control JSON al final
+    cleanedText = cleanedText.replace(/[{"\s,}\]:]+$/, "");
+
+    // Limpiar markdown JSON
+    if (cleanedText.includes("```json")) {
+      cleanedText = cleanedText.replace(/```json\s*/, "").replace(/\s*```$/, "");
+    }
+
+    // Limpiar markdown general
+    if (cleanedText.includes("```")) {
+      cleanedText = cleanedText.replace(/```\s*/, "").replace(/\s*```$/, "");
+    }
+
+    return cleanedText;
+  };
 
   // Abort stream on unmount (cleanup)
   React.useEffect(() => {
@@ -71,24 +133,32 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
     try {
       // 2. Iniciar streaming inmediato
       setStreamingHtml("");
+      setIsGenerating(true); // Mostrar que se está generando
+      // Limpiar refs de chunks
+      accumulatedChunksRef.current = "";
       // Cancelar stream previo si existe
       streamAbortRef.current?.();
       streamAbortRef.current = streamMessage(content, {
         onDelta: (delta: string) => {
-          pendingDeltaRef.current += delta;
-          if (rafRef.current == null) {
-            rafRef.current = requestAnimationFrame(() => {
-              const chunk = pendingDeltaRef.current;
-              pendingDeltaRef.current = "";
-              setStreamingHtml((prev) => (prev ?? "") + chunk);
-              rafRef.current = null;
-            });
-          }
+          // Acumular chunks sin mostrar nada hasta que esté completo
+          accumulatedChunksRef.current += delta;
         },
         onDone: async () => {
-          if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-          rafRef.current = null;
-          pendingDeltaRef.current = "";
+          // Ahora que está completo, limpiar y mostrar la respuesta
+          const finalCleanedText = cleanAccumulatedChunks();
+
+          // Ocultar estado de generación
+          setIsGenerating(false);
+
+          // Mostrar la respuesta final limpia
+          if (finalCleanedText && finalCleanedText.trim()) {
+            setStreamingHtml(finalCleanedText);
+            // Esperar un momento para que el usuario vea la respuesta
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+
+          // Limpiar refs de chunks
+          accumulatedChunksRef.current = "";
           await refetchConversation();
           streamAbortRef.current = null;
           setStreamingHtml(null);
@@ -98,9 +168,10 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
         },
         onError: (err) => {
           console.error("Stream error:", err);
-          if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-          rafRef.current = null;
-          pendingDeltaRef.current = "";
+          // Ocultar estado de generación
+          setIsGenerating(false);
+          // Limpiar refs de chunks
+          accumulatedChunksRef.current = "";
           streamAbortRef.current = null;
           setStreamingHtml(null);
           setPendingUserMessage(null);
@@ -117,29 +188,34 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
     // Cancelar cualquier stream en curso y preparar streaming nuevo
     streamAbortRef.current?.();
     streamAbortRef.current = null;
-    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-    pendingDeltaRef.current = "";
+    // Limpiar refs de chunks
+    accumulatedChunksRef.current = "";
     setStreamingHtml("");
+    setIsGenerating(true); // Mostrar que se está generando
     setInput("");
 
     try {
       streamAbortRef.current = streamEditLastMessage(content, {
         onDelta: (delta: string) => {
-          pendingDeltaRef.current += delta;
-          if (rafRef.current == null) {
-            rafRef.current = requestAnimationFrame(() => {
-              const chunk = pendingDeltaRef.current;
-              pendingDeltaRef.current = "";
-              setStreamingHtml((prev) => (prev ?? "") + chunk);
-              rafRef.current = null;
-            });
-          }
+          // Acumular chunks sin mostrar nada hasta que esté completo
+          accumulatedChunksRef.current += delta;
         },
         onDone: async () => {
-          if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-          rafRef.current = null;
-          pendingDeltaRef.current = "";
+          // Ahora que está completo, limpiar y mostrar la respuesta
+          const finalCleanedText = cleanAccumulatedChunks();
+
+          // Ocultar estado de generación
+          setIsGenerating(false);
+
+          // Mostrar la respuesta final limpia
+          if (finalCleanedText && finalCleanedText.trim()) {
+            setStreamingHtml(finalCleanedText);
+            // Esperar un momento para que el usuario vea la respuesta
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+
+          // Limpiar refs de chunks
+          accumulatedChunksRef.current = "";
           await refetchConversation();
           streamAbortRef.current = null;
           setStreamingHtml(null);
@@ -148,9 +224,10 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
         },
         onError: (err: unknown) => {
           console.error("Edit stream error:", err);
-          if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-          rafRef.current = null;
-          pendingDeltaRef.current = "";
+          // Ocultar estado de generación
+          setIsGenerating(false);
+          // Limpiar refs de chunks
+          accumulatedChunksRef.current = "";
           streamAbortRef.current = null;
           setStreamingHtml(null);
           setIsEditingLast(false);
@@ -202,9 +279,11 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
               {patient?.title || t("chatYourConsultation")}
             </div>
             <div className="text-xs text-gray-500 truncate">
-              {isLoading || isSending || streamingHtml !== null
-                ? t("chatDoctorTyping")
-                : t("chatReadyToHelp")}
+              {isGenerating
+                ? "🔄 Generando respuesta..."
+                : isLoading || isSending || streamingHtml !== null
+                  ? t("chatDoctorTyping")
+                  : t("chatReadyToHelp")}
             </div>
           </div>
           <div className="ml-auto">
@@ -219,17 +298,14 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
           messages={allMessages as any}
           userName={userName}
           isLoading={isLoading || isSending || streamingHtml !== null}
-          streamingHtml={streamingHtml}
+          streamingHtml={isGenerating ? "🔄 Generando respuesta..." : streamingHtml}
           isEditingLast={isEditingLast}
-          isBusy={isLoading || isSending || streamingHtml !== null}
+          isBusy={isLoading || isSending || streamingHtml !== null || isGenerating}
           onStartEditLast={(content) => {
             setInput(content);
             setIsEditingLast(true);
             streamAbortRef.current?.();
             streamAbortRef.current = null;
-            if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-            rafRef.current = null;
-            pendingDeltaRef.current = "";
             setStreamingHtml(null);
           }}
           onCancelEditLast={() => {
@@ -250,16 +326,17 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
           <ChatInputV2
             onSendMessage={handleSendMessage}
             onSendEdit={isEditingLast ? handleSendEdit : undefined}
-            isLoading={isLoading || isSending || streamingHtml !== null}
+            isLoading={isLoading || isSending || streamingHtml !== null || isGenerating}
             disabled={isDisabled}
             value={input}
             setValue={setInput}
             onStop={() => {
               streamAbortRef.current?.();
               streamAbortRef.current = null;
-              if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-              rafRef.current = null;
-              pendingDeltaRef.current = "";
+              // Ocultar estado de generación
+              setIsGenerating(false);
+              // Limpiar refs de chunks
+              accumulatedChunksRef.current = "";
               setStreamingHtml(null);
               setIsDisabled(false);
               setIsEditingLast(false);
@@ -271,9 +348,11 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ patientId, userName, init
         {Array.isArray(conversation) && conversation.length > 0 && (
           <div className="px-4 pb-3">
             <PatientInsightSuggest
-              isDisabled={isLoading || isSending || streamingHtml !== null || isDisabled}
+              isDisabled={
+                isLoading || isSending || streamingHtml !== null || isGenerating || isDisabled
+              }
               setInput={setInput}
-              isProcessing={isLoading || isSending || streamingHtml !== null}
+              isProcessing={isLoading || isSending || streamingHtml !== null || isGenerating}
               prompts={buildContextualPrompts(patient?.info, patient?.preferredLanguage)}
               responseSuggestions={
                 Array.isArray(conversation) && conversation.length > 0

@@ -20,7 +20,10 @@ import {
   PatientAnalysisResponse,
 } from '../utils/prompts';
 import { SimpleSemanticSearch } from '../utils/semantic-search';
-import { retrieveContextSmart } from '../rag/retrieve-advanced';
+import {
+  retrieveContextSmart,
+  AIAnalysisResponse,
+} from '../rag/retrieve-advanced';
 
 // Constants for rate limiting and validation
 const MAX_MESSAGE_LENGTH = 1000;
@@ -402,10 +405,11 @@ export class PatientService {
         // Si falla la extracción, continuamos sin bloquear el chat
       }
 
-      // Detectar idioma del mensaje actual del usuario
-      const detectedLanguage = await this.detectLanguageWithAI(
+      // Detectar idioma y categorizar el mensaje del usuario
+      const aiAnalysis = await this.detectLanguageAndCategorize(
         chatMessageDto.message,
       );
+      const detectedLanguage = aiAnalysis.language;
 
       const onboardingQuestions = buildMissingProfileQuestions(
         typeof patient.info === 'object'
@@ -419,7 +423,12 @@ export class PatientService {
       let ragContext = '';
       try {
         // Usar búsqueda avanzada con metadatos en lugar de búsqueda semántica básica
-        retrievedDocs = await retrieveContextSmart(chatMessageDto.message, 5);
+
+        retrievedDocs = await retrieveContextSmart(
+          chatMessageDto.message,
+          aiAnalysis,
+          5,
+        );
 
         // RAG mejorado ya filtra por categorías automáticamente
         // Solo limitar a los 3 documentos más relevantes
@@ -428,12 +437,8 @@ export class PatientService {
         // SOLO usar contexto RAG si encontramos documentos en el idioma del usuario
         if (retrievedDocs.length > 0) {
           ragContext =
-            '\n\n📚 INFORMACIÓN MÉDICA RELEVANTE:\n' +
-            retrievedDocs
-              .map(
-                (doc) => `• ${doc.text} (Fuente: ${doc.source}, ${doc.year})`,
-              )
-              .join('\n');
+            '\n\nBasándome en información médica disponible:\n' +
+            retrievedDocs.map((doc) => `${doc.text}`).join('\n');
 
           console.log(
             `✅ RAG: Usando ${retrievedDocs.length} documentos en ${detectedLanguage}`,
@@ -450,16 +455,43 @@ export class PatientService {
         ragContext = '';
       }
 
-      const prompt = getPatientChatPrompt(
-        detectedLanguage,
-        patient.title,
-        processedInfo,
-        chatMessageDto.message,
-        patient.chat,
-        onboardingQuestions,
-        patient.chat.length === 0,
-        ragContext, // Pasar el contexto RAG
-      );
+      // Prompt optimizado que incluye respuesta + sugerencias en una sola llamada
+      const prompt =
+        getPatientChatPrompt(
+          detectedLanguage,
+          patient.title,
+          processedInfo,
+          chatMessageDto.message,
+          patient.chat,
+          onboardingQuestions,
+          patient.chat.length === 0,
+          ragContext,
+        ) +
+        `
+
+IMPORTANTE: Responde en este formato JSON exacto:
+{
+  "response": "Tu respuesta principal aquí...",
+  "suggestions": ["Sugerencia 1", "Sugerencia 2", "Sugerencia 3", "Sugerencia 4"]
+}
+
+🔹 FORMATO OBLIGATORIO DE SUGERENCIAS:
+- Si haces preguntas → genera RESPUESTAS directas a esas preguntas
+- Si das consejos → genera sugerencias para aprender más sobre esos consejos
+- Las sugerencias deben ser lo que el usuario querría RESPONDER o HACER
+
+❌ PROHIBIDO:
+- NO generes instrucciones como "Describe", "Indica", "Comparte"
+- NO uses verbos imperativos
+- NO generes preguntas adicionales
+- NO uses markdown
+- Solo JSON puro
+
+
+✅ GENERA:
+- 4 sugerencias contextuales a tu respuesta
+- En el MISMO IDIOMA de la conversación
+- Que sean respuestas directas o acciones específicas`;
 
       // Log prompt details for validation
       this.logPromptDetails(
@@ -472,43 +504,44 @@ export class PatientService {
       );
 
       const result = await model.generateContent(prompt);
-      const aiResponse = result.response.text();
-      if (typeof aiResponse !== 'string') {
+      const responseText = result.response.text();
+      if (typeof responseText !== 'string') {
         throw new Error('Invalid response from model');
       }
 
-      // Generar sugerencias de seguimiento
-      const { getFollowupSuggestionsPrompt } = await import('../utils/prompts');
+      // Parsear respuesta combinada (respuesta + sugerencias)
+      let aiResponse = '';
       let suggestions: string[] = [];
+
       try {
-        const suggModel = this.genAI.getGenerativeModel({
-          model: 'gemini-2.0-flash',
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 200,
-            responseMimeType: 'application/json',
-          },
-        });
-        const suggPrompt = getFollowupSuggestionsPrompt(
-          patient.title,
-          processedInfo,
-          chatMessageDto.message,
-          aiResponse,
-          detectedLanguage,
-        );
-        const suggRes = await suggModel.generateContent({
-          contents: [{ role: 'user', parts: [{ text: suggPrompt }] }],
-        });
-        const text = suggRes.response.text();
-        const parsed: unknown = JSON.parse(text);
-        if (Array.isArray(parsed)) {
-          suggestions = (parsed as unknown[])
-            .filter((s): s is string => typeof s === 'string')
-            .slice(0, 4);
+        // Limpiar markdown antes de parsear JSON
+        let cleanResponse = responseText;
+        if (cleanResponse.includes('```json')) {
+          cleanResponse = cleanResponse
+            .replace(/```json\s*/, '')
+            .replace(/\s*```$/, '');
+        } else if (cleanResponse.includes('```')) {
+          cleanResponse = cleanResponse
+            .replace(/```\s*/, '')
+            .replace(/\s*```$/, '');
+        }
+
+        // Intentar parsear como JSON
+        const parsed = JSON.parse(cleanResponse);
+        if (parsed.response && Array.isArray(parsed.suggestions)) {
+          aiResponse = parsed.response;
+          suggestions = parsed.suggestions.slice(0, 4);
+        } else {
+          // Fallback: usar respuesta completa como texto
+          aiResponse = responseText;
+          suggestions = [];
         }
       } catch (error) {
-        console.error('Error generating followup suggestions:', error);
+        console.error('Error parsing response:', error);
+        // Fallback: usar respuesta completa como texto
+        aiResponse = responseText;
         suggestions = [];
+        console.log('Response was not JSON, using as plain text');
       }
 
       const userMessage: ChatMessage = {
@@ -551,6 +584,87 @@ export class PatientService {
       throw new HttpException('Patient not found', HttpStatus.NOT_FOUND);
     }
 
+    // Función para limpiar markdown de chunks individuales
+    const cleanChunk = (chunk: string): string => {
+      if (!chunk) return chunk;
+
+      // Limpiar JSON parcial que puede aparecer durante el streaming
+      // Esto evita que se muestre temporalmente {"response": en el frontend
+      let cleanedChunk = chunk;
+
+      // Caso 1: Chunk completo que empieza con JSON válido
+      if (cleanedChunk.startsWith('{"response":')) {
+        try {
+          const parsed = JSON.parse(cleanedChunk);
+          if (parsed.response) {
+            return parsed.response;
+          }
+        } catch {
+          // Si no se puede parsear, continuar con la limpieza normal
+        }
+      }
+
+      // Caso 2: Chunk que contiene JSON parcial con {"response":
+      if (cleanedChunk.includes('{"response":')) {
+        const responseStart = cleanedChunk.indexOf('"response":') + 11; // 11 es la longitud de '"response":'
+        if (responseStart < cleanedChunk.length) {
+          // Extraer desde después de "response": hasta el final del chunk
+          const afterResponse = cleanedChunk.substring(responseStart);
+          // Remover comillas, comas, espacios y caracteres de control iniciales
+          cleanedChunk = afterResponse.replace(/^["\s,}\]]+/, '');
+        }
+      }
+
+      // Caso 3: Chunk que contiene "response:" (sin llaves)
+      // Este es el caso que estás viendo en los logs
+      if (cleanedChunk.includes('"response":')) {
+        const responseStart = cleanedChunk.indexOf('"response":') + 11; // 11 es la longitud de '"response":'
+        if (responseStart < cleanedChunk.length) {
+          // Extraer desde después de "response": hasta el final del chunk
+          const afterResponse = cleanedChunk.substring(responseStart);
+          // Remover comillas, espacios y caracteres de control iniciales
+          cleanedChunk = afterResponse.replace(/^["\s]+/, '');
+        }
+      }
+
+      // Caso 4: Chunk que solo contiene caracteres de JSON (como comillas, llaves, etc.)
+      // Esto puede pasar cuando el chunk es muy pequeño
+      if (cleanedChunk.match(/^[{"\s,}\]:]+$/)) {
+        return ''; // No mostrar chunks que solo contengan caracteres de JSON
+      }
+
+      // Caso 5: Chunk que empieza con caracteres de JSON pero no es completo
+      // Esto puede pasar con responseMimeType: 'application/json'
+      if (
+        cleanedChunk.startsWith('"') &&
+        cleanedChunk.includes('"response":')
+      ) {
+        // Buscar el inicio del contenido después de "response":
+        const responseStart = cleanedChunk.indexOf('"response":') + 11;
+        if (responseStart < cleanedChunk.length) {
+          const afterResponse = cleanedChunk.substring(responseStart);
+          // Remover comillas y caracteres de control iniciales
+          cleanedChunk = afterResponse.replace(/^["\s,]+/, '');
+        }
+      }
+
+      // Limpiar markdown JSON
+      if (cleanedChunk.includes('```json')) {
+        cleanedChunk = cleanedChunk
+          .replace(/```json\s*/, '')
+          .replace(/\s*```$/, '');
+      }
+
+      // Limpiar markdown general
+      if (cleanedChunk.includes('```')) {
+        cleanedChunk = cleanedChunk
+          .replace(/```\s*/, '')
+          .replace(/\s*```$/, '');
+      }
+
+      return cleanedChunk;
+    };
+
     this.validateMessage(chatMessageDto.message);
     this.checkRateLimit(id);
 
@@ -561,6 +675,7 @@ export class PatientService {
         topK: 40,
         topP: 0.95,
         maxOutputTokens: 1024,
+        responseMimeType: 'application/json', // Forzar respuesta en JSON puro
       },
     });
 
@@ -633,7 +748,15 @@ export class PatientService {
         console.log('🔍 DEBUG STREAM: Query:', chatMessageDto.message);
         console.log('🔍 DEBUG STREAM: Language:', detectedLanguage);
 
-        retrievedDocs = await retrieveContextSmart(chatMessageDto.message, 6);
+        const aiAnalysisStream = await this.detectLanguageAndCategorize(
+          chatMessageDto.message,
+        );
+
+        retrievedDocs = await retrieveContextSmart(
+          chatMessageDto.message,
+          aiAnalysisStream,
+          6,
+        );
 
         console.log(
           '🔍 DEBUG STREAM: retrieveContextSmart retornó:',
@@ -710,36 +833,138 @@ export class PatientService {
         // SOLO usar contexto RAG si encontramos documentos en el idioma del usuario
         if (retrievedDocs.length > 0) {
           ragContext =
-            '\n\n📚 INFORMACIÓN MÉDICA RELEVANTE:\n' +
-            retrievedDocs
-              .map(
-                (doc) => `• ${doc.text} (Fuente: ${doc.source}, ${doc.year})`,
-              )
-              .join('\n');
+            '\n\nBasándome en información médica disponible:\n' +
+            retrievedDocs.map((doc) => `${doc.text}`).join('\n');
 
           console.log(
             `✅ RAG Stream: Usando ${retrievedDocs.length} documentos en ${detectedLanguage}`,
           );
         } else {
           console.log(
-            `⚠️ RAG Stream: No se encontraron documentos en ${detectedLanguage}, continuando sin contexto`,
+            `⚠️ RAG Stream: No se encontraron documentos en ${detectedLanguage}`,
           );
-          ragContext = ''; // Asegurar que esté vacío
+
+          // FALLBACK: Si es español y no hay documentos, traducir al inglés e intentar RAG
+          if (detectedLanguage === 'Español') {
+            try {
+              console.log(
+                '🔄 RAG Fallback: Traduciendo consulta al inglés para búsqueda...',
+              );
+
+              // Traducir la consulta al inglés usando el modelo
+              const translationPrompt = `Traduce la siguiente consulta médica del español al inglés. Solo responde con la traducción, sin explicaciones adicionales:
+
+Consulta: "${chatMessageDto.message}"
+
+Traducción:`;
+
+              const translationRes =
+                await model.generateContent(translationPrompt);
+              const translatedQuery = translationRes.response.text().trim();
+
+              console.log(
+                `🔄 RAG Fallback: Consulta traducida: "${translatedQuery}"`,
+              );
+
+              // Intentar RAG con la consulta traducida
+              const fallbackDocs = await retrieveContextSmart(
+                translatedQuery,
+                aiAnalysisStream,
+                6,
+              );
+
+              if (fallbackDocs.length > 0) {
+                // Filtrar por categoría si se detectó
+                if (detectedCategory) {
+                  fallbackDocs.filter((doc) => {
+                    const docText = doc.text.toLowerCase();
+                    const docCategory = (doc.category || '').toLowerCase();
+
+                    const categoryMatch = docCategory.includes(
+                      detectedCategory.toLowerCase(),
+                    );
+
+                    const textMatch = docText.includes(
+                      detectedCategory.toLowerCase(),
+                    );
+
+                    return categoryMatch || textMatch;
+                  });
+                }
+
+                // Limitar a los 3 documentos más relevantes
+                const finalDocs = fallbackDocs.slice(0, 3);
+
+                if (finalDocs.length > 0) {
+                  ragContext =
+                    '\n\nBasándome en información médica disponible:\n' +
+                    finalDocs.map((doc) => `${doc.text}`).join('\n');
+
+                  console.log(
+                    `✅ RAG Fallback: Usando ${finalDocs.length} documentos en inglés como fallback`,
+                  );
+                } else {
+                  console.log(
+                    '⚠️ RAG Fallback: No se encontraron documentos relevantes después de la traducción',
+                  );
+                  ragContext = '';
+                }
+              } else {
+                console.log(
+                  '⚠️ RAG Fallback: No se encontraron documentos después de la traducción',
+                );
+                ragContext = '';
+              }
+            } catch (fallbackError) {
+              console.error('Error en fallback de RAG:', fallbackError);
+              ragContext = '';
+            }
+          } else {
+            console.log('⚠️ RAG Stream: Continuando sin contexto RAG');
+            ragContext = '';
+          }
         }
       } catch (error) {
         console.error('Error retrieving RAG context:', error);
       }
 
-      const prompt = getPatientChatPrompt(
-        detectedLanguage,
-        patient.title,
-        processedInfo,
-        chatMessageDto.message,
-        patient.chat,
-        onboardingQuestions,
-        patient.chat.length === 0,
-        ragContext,
-      );
+      // Prompt optimizado que incluye respuesta + sugerencias en una sola llamada
+      const prompt =
+        getPatientChatPrompt(
+          detectedLanguage,
+          patient.title,
+          processedInfo,
+          chatMessageDto.message,
+          patient.chat,
+          onboardingQuestions,
+          patient.chat.length === 0,
+          ragContext,
+        ) +
+        `
+
+IMPORTANTE: Responde en este formato JSON exacto:
+{
+  "response": "Tu respuesta principal aquí...",
+  "suggestions": ["Sugerencia 1", "Sugerencia 2", "Sugerencia 3", "Sugerencia 4"]
+}
+
+🔹 FORMATO OBLIGATORIO DE SUGERENCIAS:
+- Si haces preguntas → genera RESPUESTAS directas a esas preguntas
+- Si das consejos → genera sugerencias para aprender más sobre esos consejos
+- Las sugerencias deben ser lo que el usuario querría RESPONDER o HACER
+
+❌ PROHIBIDO:
+- NO generes instrucciones como "Describe", "Indica", "Comparte"
+- NO uses verbos imperativos
+- NO generes preguntas adicionales
+- NO uses markdown
+- Solo JSON puro
+
+
+✅ GENERA:
+- 4 sugerencias contextuales a tu respuesta
+- En el MISMO IDIOMA de la conversación
+- Que sean respuestas directas o acciones específicas`;
 
       // Log prompt details for validation
       this.logPromptDetails(
@@ -760,7 +985,11 @@ export class PatientService {
         const text = chunk.text();
         if (text) {
           aiResponse += text;
-          await onDelta(text);
+
+          // Limpiar markdown del chunk ANTES de enviarlo al frontend
+          const cleanText = cleanChunk(text);
+
+          await onDelta(cleanText);
         }
       }
 
@@ -769,42 +998,38 @@ export class PatientService {
         return;
       }
 
-      // After stream completes, generate follow-up suggestions
+      // Parsear respuesta combinada (respuesta + sugerencias)
       let suggestions: string[] = [];
+
       try {
-        const { getFollowupSuggestionsPrompt } = await import(
-          '../utils/prompts'
-        );
-        const suggModel = this.genAI.getGenerativeModel({
-          model: 'gemini-2.0-flash',
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 200,
-            responseMimeType: 'application/json',
-          },
-        });
-        const suggPrompt = getFollowupSuggestionsPrompt(
-          patient.title,
-          processedInfo,
-          chatMessageDto.message,
-          aiResponse,
-          detectedLanguage,
-        );
-        const suggRes = await suggModel.generateContent({
-          contents: [{ role: 'user', parts: [{ text: suggPrompt }] }],
-        });
-        const text = suggRes.response.text();
-        const parsed: unknown = JSON.parse(text);
-        if (Array.isArray(parsed)) {
-          suggestions = (parsed as unknown[])
-            .filter((s): s is string => typeof s === 'string')
-            .slice(0, 4);
+        // Limpiar markdown antes de parsear JSON
+        let cleanResponse = aiResponse;
+        if (cleanResponse.includes('```json')) {
+          cleanResponse = cleanResponse
+            .replace(/```json\s*/, '')
+            .replace(/\s*```$/, '');
+        } else if (cleanResponse.includes('```')) {
+          cleanResponse = cleanResponse
+            .replace(/```\s*/, '')
+            .replace(/\s*```$/, '');
+        }
+
+        // Intentar parsear como JSON
+        const parsed = JSON.parse(cleanResponse);
+        if (parsed.response && Array.isArray(parsed.suggestions)) {
+          // Si es JSON válido, extraer sugerencias
+          suggestions = parsed.suggestions.slice(0, 4);
+          // También actualizar aiResponse para el contenido real
+          aiResponse = parsed.response;
+        } else {
+          // Fallback: no hay sugerencias
+          suggestions = [];
         }
       } catch (error) {
-        console.error(
-          'Followup suggestion generation failed (non-fatal):',
-          error,
-        );
+        console.error('Error parsing response:', error);
+        // Fallback: no hay sugerencias, usar respuesta completa
+        suggestions = [];
+        console.log('Stream response was not JSON, using as plain text');
       }
 
       const userMessage: ChatMessage = {
@@ -977,6 +1202,45 @@ export class PatientService {
     return patient.chat;
   }
 
+  private detectLanguageFallback(text: string): 'Español' | 'English' {
+    // Simple language detection based on common words
+    const spanishWords = [
+      'el',
+      'la',
+      'de',
+      'que',
+      'y',
+      'en',
+      'un',
+      'es',
+      'se',
+      'no',
+    ];
+    const englishWords = [
+      'the',
+      'be',
+      'to',
+      'of',
+      'and',
+      'a',
+      'in',
+      'that',
+      'have',
+      'i',
+    ];
+
+    const words = text.toLowerCase().split(/\s+/);
+    let spanishCount = 0;
+    let englishCount = 0;
+
+    for (const word of words) {
+      if (spanishWords.includes(word)) spanishCount++;
+      if (englishWords.includes(word)) englishCount++;
+    }
+
+    return spanishCount >= englishCount ? 'Español' : 'English';
+  }
+
   private async detectLanguageWithAI(
     text: string,
   ): Promise<'Español' | 'English'> {
@@ -1037,8 +1301,101 @@ export class PatientService {
     }
   }
 
-  private detectLanguageFallback(text: string): 'Español' | 'English' {
-    // Solo palabras muy básicas como respaldo
+  /**
+   * Usa la IA para detectar idioma Y categorizar automáticamente el mensaje del usuario
+   * Una sola llamada que hace ambas cosas para optimizar costos y velocidad
+   */
+  private async detectLanguageAndCategorize(
+    message: string,
+  ): Promise<AIAnalysisResponse> {
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash',
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 200,
+          responseMimeType: 'application/json',
+        },
+      });
+
+      const prompt = `
+      You are a medical AI assistant that detects language AND categorizes user messages in ONE response.
+
+      User message: "${message}"
+
+      RESPOND WITH THIS EXACT JSON FORMAT:
+      {
+        "translation": "English translation if Spanish, or same if English",
+        "category": "Mental Health|Natural Medicine|Wellness|Physical Health|General",
+        "conditions": ["condition1", "condition2", "condition3"],
+        "relevance_score": 0.95,
+        "language": "Español|English"
+      }
+
+      LANGUAGE DETECTION RULES:
+      - If the text contains ANY English words (the, and, I, you, etc.) → "English"
+      - If the text contains ANY Spanish words (el, la, de, que, etc.) → "Español"
+      - Be VERY strict about English detection
+
+      CATEGORY RULES:
+      - Mental Health: anxiety, depression, stress, insomnia, mood, psychology
+      - Natural Medicine: herbs, essential oils, natural remedies, aromatherapy
+      - Wellness: exercise, nutrition, sleep, general health, lifestyle
+      - Physical Health: pain, fever, symptoms, specific medical conditions
+      - General: unclear or mixed topics
+
+      CONDITION EXAMPLES:
+      - "Tengo ansiedad" → ["anxiety", "stress", "mental health"]
+      - "No duermo bien" → ["insomnia", "sleep", "sleep quality"]
+      - "Lavanda para relajarme" → ["lavender", "relaxation", "aromatherapy"]
+      - "Ejercicio para bajar de peso" → ["exercise", "weight loss", "fitness"]
+
+      Be specific and relevant. Only respond with the JSON.
+      `;
+
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text();
+
+      try {
+        const parsed = JSON.parse(responseText) as AIAnalysisResponse;
+
+        // Validar que tenga todos los campos requeridos
+        if (
+          parsed.translation &&
+          parsed.category &&
+          Array.isArray(parsed.conditions) &&
+          (parsed.language === 'Español' || parsed.language === 'English')
+        ) {
+          console.log(
+            `🤖 AI detected language: ${parsed.language} and categorized: ${parsed.category} - ${parsed.conditions.join(', ')}`,
+          );
+          return parsed;
+        }
+      } catch (parseError) {
+        console.error(
+          'Failed to parse AI language detection and categorization response:',
+          parseError,
+        );
+      }
+
+      // Fallback si la IA falla
+      return this.detectLanguageAndCategorizeFallback(message);
+    } catch (error) {
+      console.error(
+        'AI language detection and categorization failed, using fallback:',
+        error,
+      );
+      return this.detectLanguageAndCategorizeFallback(message);
+    }
+  }
+
+  /**
+   * Fallback para cuando la IA falla en detección y categorización
+   */
+  private detectLanguageAndCategorizeFallback(
+    message: string,
+  ): AIAnalysisResponse {
+    // Detección simple de idioma
     const spanishBasic = [
       'el',
       'la',
@@ -1064,7 +1421,7 @@ export class PatientService {
       'i',
     ];
 
-    const words = text.toLowerCase().split(/\s+/);
+    const words = message.toLowerCase().split(/\s+/);
     let spanishCount = 0;
     let englishCount = 0;
 
@@ -1073,11 +1430,55 @@ export class PatientService {
       if (englishBasic.includes(word)) englishCount++;
     }
 
-    const detected = spanishCount >= englishCount ? 'Español' : 'English';
+    const detectedLanguage =
+      spanishCount >= englishCount ? 'Español' : 'English';
+
+    // Categorización simple basada en palabras clave
+    const messageLower = message.toLowerCase();
+    let category = 'General';
+    let conditions: string[] = [];
+
+    if (
+      messageLower.includes('ansiedad') ||
+      messageLower.includes('anxiety') ||
+      messageLower.includes('depresión') ||
+      messageLower.includes('depression') ||
+      messageLower.includes('estrés') ||
+      messageLower.includes('stress') ||
+      messageLower.includes('insomnio') ||
+      messageLower.includes('insomnia')
+    ) {
+      category = 'Mental Health';
+      conditions = ['mental health', 'wellness'];
+    } else if (
+      messageLower.includes('lavanda') ||
+      messageLower.includes('lavender') ||
+      messageLower.includes('manzanilla') ||
+      messageLower.includes('chamomile')
+    ) {
+      category = 'Natural Medicine';
+      conditions = ['natural remedies', 'herbs'];
+    } else if (
+      messageLower.includes('ejercicio') ||
+      messageLower.includes('exercise') ||
+      messageLower.includes('nutrición') ||
+      messageLower.includes('nutrition')
+    ) {
+      category = 'Wellness';
+      conditions = ['wellness', 'lifestyle'];
+    }
+
     console.log(
-      `🔍 Fallback detected language: ${detected} for text: "${text}"`,
+      `🔍 Fallback detected language: ${detectedLanguage} and category: ${category}`,
     );
-    return detected;
+
+    return {
+      translation: message,
+      category: category,
+      conditions: conditions,
+      relevance_score: 0.5,
+      language: detectedLanguage,
+    };
   }
 
   private generateWelcomeMessage(language: 'Español' | 'English'): string {

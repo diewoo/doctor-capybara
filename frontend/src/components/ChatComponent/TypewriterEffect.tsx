@@ -44,13 +44,26 @@ const TypewriterEffect: React.FC<TypewriterEffectProps> = ({
   const processContent = (content: string) => {
     if (!content) return "";
 
+    // Limpiar markdown ANTES de procesar HTML
+    let cleanContent = content;
+
+    // Limpiar markdown JSON
+    if (cleanContent.includes("```json")) {
+      cleanContent = cleanContent.replace(/```json\s*/, "").replace(/\s*```$/, "");
+    }
+
+    // Limpiar markdown general
+    if (cleanContent.includes("```")) {
+      cleanContent = cleanContent.replace(/```\s*/, "").replace(/\s*```$/, "");
+    }
+
     // Solo procesar HTML si parece tener etiquetas
-    if (content.includes("<") && content.includes(">")) {
-      return sanitizeHtml(formatHtml(content));
+    if (cleanContent.includes("<") && cleanContent.includes(">")) {
+      return sanitizeHtml(formatHtml(cleanContent));
     }
 
     // Si es texto plano, solo hacer line breaks
-    return content.replace(/\n/g, "<br>");
+    return cleanContent.replace(/\n/g, "<br>");
   };
 
   return (
