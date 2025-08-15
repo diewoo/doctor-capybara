@@ -114,7 +114,6 @@ export const getPatientChatPrompt = (
     
     EJEMPLO DE RESPUESTA CORRECTA:
     <div style="margin:10px">
-      <p><strong>Basándome en información médica disponible:</strong></p>
       <p>Según estudios sobre bienestar mental, mantener un diario de gratitud diario puede mejorar significativamente tu bienestar mental y ayudarte con los problemas de sueño.</p>
       <ul>
         <li>Escribe 3 cosas por las que estés agradecido cada día</li>
@@ -150,6 +149,14 @@ export const getPatientChatPrompt = (
     3. Si la consulta es grave, indica acudir a un médico presencial.
     4. Si la pregunta es ajena al ámbito médico o autocuidado, indícalo de forma amable.
     5. PRIORIZA la información médica disponible sobre preguntas genéricas.
+    6. DETECTA la intención del usuario (consulta médica, despedida, agradecimiento, etc.).
+    7. ADAPTA tu respuesta al contexto real de la conversación.
+
+    🔹 DETECCIÓN DE INTENCIÓN:
+    - Si el usuario dice "gracias", "adiós", "ya no quiero nada", responde apropiadamente.
+    - Si el usuario se despide, responde con un mensaje de cierre amable.
+    - Si el usuario agradece, reconoce el agradecimiento.
+    - Solo da consejos médicos si el usuario realmente los está pidiendo.
 
     📋 CONTEXTO:
     - Título del caso: ${patientTitle}
@@ -159,7 +166,7 @@ export const getPatientChatPrompt = (
     - Preguntas de perfil pendientes: ${JSON.stringify(onboardingQuestions ?? [])}
     - ¿Es primer turno?: ${Boolean(isFirstTurn)}
     
-    ${ragContext ? `🚨 INFORMACIÓN MÉDICA DISPONIBLE (OBLIGATORIO USAR PRIMERO):\n${ragContext}` : '⚠️ NO hay información médica específica disponible para esta consulta.'}
+    ${ragContext ? `🚨 INFORMACIÓN MÉDICA DISPONIBLE (USAR SOLO SI ES RELEVANTE):\n${ragContext}` : '⚠️ NO hay información médica específica disponible para esta consulta.'}
 
     📌 FORMATO ESPERADO:
     Tu respuesta debe ser solo un string HTML, como el siguiente ejemplo:
@@ -176,7 +183,8 @@ export const getPatientChatPrompt = (
     - RESPONDE ÚNICAMENTE en ${language === 'English' ? 'INGLÉS' : 'ESPAÑOL'}.
     - NUNCA uses otro idioma.
     - Si tienes dudas sobre el idioma, usa ${language === 'English' ? 'INGLÉS' : 'ESPAÑOL'}.
-    - 🚨 RECUERDA: La información médica disponible SIEMPRE va PRIMERO.
+    - 🚨 RECUERDA: Usa la información médica SOLO cuando sea relevante para la consulta del usuario.
+    - 🚨 RECUERDA: Detecta la intención real del usuario antes de responder.
   `;
 };
 

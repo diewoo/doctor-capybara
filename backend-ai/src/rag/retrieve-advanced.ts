@@ -192,45 +192,40 @@ export async function retrieveContextAdvanced(
     const embedding = await embeddingService.embed(userQuery);
     const vectorString = `[${embedding.join(',')}]`;
 
-    // Construir la consulta SQL dinámicamente
+    // Construir la consulta SQL usando la función optimizada similarity_search
     let sql = `
       SELECT
         id, text, source, year,
         COALESCE(domain, 'general') as category,
-        embedding <#> $2::vector as score
-      FROM docs
-      WHERE language = $1
+        similarity
+      FROM similarity_search($2::vector, 0.6, $3, $1)
     `;
 
-    const params: any[] = [language, vectorString];
-    let paramIndex = 3;
+    const params: any[] = [language, vectorString, topK];
 
     // Agregar filtros de categoría
     if (filters?.category && filters.category.length > 0) {
-      sql += ` AND domain = ANY($${paramIndex})`;
+      sql += ` AND domain = ANY($${params.length})`;
       params.push(filters.category);
-      paramIndex++;
     }
 
     // Agregar filtros de año
     if (filters?.year_range) {
       if (filters.year_range.min) {
-        sql += ` AND year >= $${paramIndex}`;
+        sql += ` AND year >= $${params.length}`;
         params.push(filters.year_range.min);
-        paramIndex++;
       }
       if (filters.year_range.max) {
-        sql += ` AND year <= $${paramIndex}`;
+        sql += ` AND year <= $${params.length}`;
         params.push(filters.year_range.max);
-        paramIndex++;
       }
     }
 
     // Ordenar por similitud vectorial (score más bajo = más similar)
     sql += `
       ORDER BY
-        score ASC
-      LIMIT $${paramIndex}
+        similarity ASC
+      LIMIT $${params.length}
     `;
 
     params.push(topK);
@@ -240,11 +235,13 @@ export async function retrieveContextAdvanced(
 
     const { rows } = await pool.query(sql, params);
 
-    console.log(
-      `✅ Advanced RAG found ${rows.length} results for "${userQuery}" in ${language}`,
-    );
+    // Mapear resultados usando 'similarity' en lugar de 'score'
+    const mappedRows = rows.map((row) => ({
+      ...row,
+      score: row.similarity, // Convertir similarity a score para compatibilidad
+    }));
 
-    return rows as RetrievedAdvanced[];
+    return mappedRows as RetrievedAdvanced[];
   } catch (error) {
     console.error('Error in advanced RAG:', error);
     // Fallback: usar la función original de retrieve.ts
